@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Download } from "lucide-react";
+import Image from "next/image";
 import { navLinks, personalInfo } from "@/lib/data";
 
 export default function Navbar() {
@@ -32,18 +33,29 @@ export default function Navbar() {
                 animate={{ y: 0 }}
                 transition={{ duration: 0.5 }}
                 className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
-                        ? "glass shadow-lg"
-                        : "bg-transparent"
+                    ? "glass shadow-lg"
+                    : "bg-transparent"
                     }`}
             >
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         {/* Logo */}
+                        {/* Logo */}
                         <a
                             href="#"
-                            className="text-xl font-bold bg-gradient-to-r from-accent to-accent-secondary bg-clip-text text-transparent"
+                            className="flex items-center gap-2 text-xl font-bold"
                         >
-                            YG
+                            <div className="relative w-8 h-8 overflow-hidden rounded-full border border-accent/20">
+                                <Image
+                                    src="/icon.png"
+                                    alt="Logo"
+                                    fill
+                                    className="object-cover"
+                                />
+                            </div>
+                            <span className="bg-gradient-to-r from-accent to-accent-secondary bg-clip-text text-transparent">
+                                YG
+                            </span>
                         </a>
 
                         {/* Desktop Navigation */}
