@@ -7,7 +7,7 @@ export const personalInfo = {
   location: "Chennai, Tamil Nadu, India",
   linkedin: "https://www.linkedin.com/in/yogeshwaran-g/",
   github: "https://github.com/Yogesh-G-3468",
-  resumeUrl: "/resume.pdf",
+  resumeUrl: "/Yogesh_Resume.docx",
 };
 
 export const aboutText = {
