@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Upload, X, Save, Eye } from 'lucide-react';
+import { ArrowLeft, Upload, X, Save, Eye, Sparkles, Youtube, Loader2 } from 'lucide-react';
 
 export default function NewBlogPage() {
     const [title, setTitle] = useState('');
@@ -16,6 +16,12 @@ export default function NewBlogPage() {
     const [uploading, setUploading] = useState(false);
     const [uploadingContent, setUploadingContent] = useState(false);
     const [error, setError] = useState('');
+
+    // AI Generation State
+    const [showAiModal, setShowAiModal] = useState(false);
+    const [youtubeUrl, setYoutubeUrl] = useState('');
+    const [generating, setGenerating] = useState(false);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
     const contentRef = useRef<HTMLTextAreaElement>(null);
     const router = useRouter();
@@ -80,6 +86,46 @@ export default function NewBlogPage() {
             setError(err.message || 'Failed to upload image');
         } finally {
             setUploading(false);
+        }
+    };
+
+    const handleAiGenerate = async () => {
+        if (!youtubeUrl) {
+            setError('Please enter a YouTube URL');
+            return;
+        }
+
+        setGenerating(true);
+        setError('');
+
+        try {
+            const res = await fetch('/api/ai/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${getToken()}`,
+                },
+                body: JSON.stringify({ url: youtubeUrl }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to generate content');
+            }
+
+            const data = await res.json();
+
+            setTitle(data.title);
+            setSlug(data.slug || generateSlug(data.title));
+            setExcerpt(data.excerpt);
+            setContent(data.content);
+            setShowAiModal(false);
+            setYoutubeUrl('');
+
+        } catch (err: any) {
+            setError(err.message || 'Failed to generate content');
+        } finally {
+            setGenerating(false);
         }
     };
 
@@ -166,17 +212,28 @@ export default function NewBlogPage() {
     };
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-background relative">
             <div className="max-w-4xl mx-auto px-4 py-8">
                 {/* Header */}
-                <div className="flex items-center gap-4 mb-8">
-                    <Link
-                        href="/admin/blogs"
-                        className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-4">
+                        <Link
+                            href="/admin/blogs"
+                            className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                        >
+                            <ArrowLeft className="w-5 h-5" />
+                        </Link>
+                        <h1 className="text-2xl font-bold text-foreground">Create New Blog</h1>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => setShowAiModal(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-medium hover:opacity-90 transition-opacity shadow-lg shadow-purple-500/20"
                     >
-                        <ArrowLeft className="w-5 h-5" />
-                    </Link>
-                    <h1 className="text-2xl font-bold text-foreground">Create New Blog</h1>
+                        <Sparkles className="w-4 h-4" />
+                        Generate with AI
+                    </button>
                 </div>
 
                 {error && (
@@ -349,6 +406,64 @@ export default function NewBlogPage() {
                     </div>
                 </form>
             </div>
+
+            {/* AI Generation Modal */}
+            {showAiModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-background border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                                <Sparkles className="w-5 h-5 text-purple-500" />
+                                Generate from YouTube
+                            </h3>
+                            <button
+                                onClick={() => setShowAiModal(false)}
+                                className="text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-2">
+                                    YouTube Video URL
+                                </label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                                        <Youtube className="w-5 h-5 text-muted-foreground" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={youtubeUrl}
+                                        onChange={(e) => setYoutubeUrl(e.target.value)}
+                                        placeholder="https://www.youtube.com/watch?v=..."
+                                        className="w-full pl-10 pr-4 py-3 bg-background-elevated border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handleAiGenerate}
+                                disabled={generating || !youtubeUrl}
+                                className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {generating ? (
+                                    <>
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        Generating Content...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Sparkles className="w-5 h-5" />
+                                        Generate Blog
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

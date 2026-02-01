@@ -61,11 +61,11 @@ body {
   transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out;
 }
 
-*:not(html):not(body) {
+/* *:not(html):not(body) {
   transition-property: background-color, border-color, color, fill, stroke;
   transition-duration: 300ms;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-}
+} */
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {

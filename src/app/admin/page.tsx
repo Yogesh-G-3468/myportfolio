@@ -57,8 +57,8 @@ export default function AdminPage() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-background px-4">
-            <div className="w-full max-w-md">
+        <div className="min-h-screen flex items-center justify-center bg-background px-4 relative z-[9999]">
+            <div className="w-full max-w-md relative z-[9999]">
                 <div className="bg-card border border-border rounded-2xl p-8 shadow-xl">
                     <div className="text-center mb-8">
                         <h1 className="text-2xl font-bold text-foreground mb-2">Admin Access</h1>
