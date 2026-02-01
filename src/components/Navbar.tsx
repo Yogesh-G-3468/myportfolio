@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Download } from "lucide-react";
 import Image from "next/image";
 import { navLinks, personalInfo } from "@/lib/data";
+import ThemeToggle from "./ThemeToggle";
 
 export default function Navbar() {
     const [isScrolled, setIsScrolled] = useState(false);
@@ -20,9 +21,15 @@ export default function Navbar() {
 
     const handleNavClick = (href: string) => {
         setIsMobileMenuOpen(false);
-        const element = document.querySelector(href);
-        if (element) {
-            element.scrollIntoView({ behavior: "smooth" });
+        // If it's a hash link, scroll to element
+        if (href.startsWith('#')) {
+            const element = document.querySelector(href);
+            if (element) {
+                element.scrollIntoView({ behavior: "smooth" });
+            }
+        } else {
+            // For page links, use window.location
+            window.location.href = href;
         }
     };
 
@@ -39,7 +46,6 @@ export default function Navbar() {
             >
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
-                        {/* Logo */}
                         {/* Logo */}
                         <a
                             href="#"
@@ -59,7 +65,7 @@ export default function Navbar() {
                         </a>
 
                         {/* Desktop Navigation */}
-                        <div className="hidden md:flex items-center gap-8">
+                        <div className="hidden md:flex items-center gap-6">
                             {navLinks.map((link) => (
                                 <button
                                     key={link.name}
@@ -69,6 +75,7 @@ export default function Navbar() {
                                     {link.name}
                                 </button>
                             ))}
+                            <ThemeToggle />
                             <a
                                 href={personalInfo.resumeUrl}
                                 download
@@ -79,14 +86,17 @@ export default function Navbar() {
                             </a>
                         </div>
 
-                        {/* Mobile Menu Button */}
-                        <button
-                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                            className="md:hidden p-2 text-foreground-secondary hover:text-accent transition-colors"
-                            aria-label="Toggle menu"
-                        >
-                            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-                        </button>
+                        {/* Mobile Menu Button & Theme Toggle */}
+                        <div className="flex items-center gap-2 md:hidden">
+                            <ThemeToggle />
+                            <button
+                                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                                className="p-2 text-foreground-secondary hover:text-accent transition-colors"
+                                aria-label="Toggle menu"
+                            >
+                                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </motion.nav>

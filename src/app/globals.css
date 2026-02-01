@@ -1,6 +1,21 @@
 @import "tailwindcss";
 
 :root {
+  /* Light theme (default) */
+  --background: #fafafa;
+  --background-elevated: #ffffff;
+  --foreground: #0f172a;
+  --foreground-secondary: #64748b;
+  --accent: #0891b2;
+  --accent-secondary: #059669;
+  --border: #e2e8f0;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --card: #ffffff;
+  --primary: #0891b2;
+}
+
+.dark {
   --background: #0a0a0f;
   --background-elevated: #12121a;
   --foreground: #f8fafc;
@@ -8,6 +23,10 @@
   --accent: #22d3ee;
   --accent-secondary: #10b981;
   --border: #1e1e2e;
+  --muted: #1e1e2e;
+  --muted-foreground: #94a3b8;
+  --card: #12121a;
+  --primary: #22d3ee;
 }
 
 @theme inline {
@@ -18,6 +37,10 @@
   --color-accent: var(--accent);
   --color-accent-secondary: var(--accent-secondary);
   --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-card: var(--card);
+  --color-primary: var(--primary);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -30,6 +53,18 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Theme transition */
+html,
+body {
+  transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out;
+}
+
+*:not(html):not(body) {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 300ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Custom scrollbar */
@@ -56,6 +91,7 @@ body {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -63,18 +99,24 @@ body {
 }
 
 @keyframes float {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-10px);
   }
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);
   }
+
   50% {
     box-shadow: 0 0 40px rgba(34, 211, 238, 0.6);
   }
@@ -92,9 +134,19 @@ body {
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
-/* Gradient mesh background */
+/* Gradient mesh background - light mode */
 .gradient-mesh {
-  background-image: 
+  background-image:
+    radial-gradient(at 40% 20%, rgba(8, 145, 178, 0.1) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, rgba(5, 150, 105, 0.08) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, rgba(8, 145, 178, 0.08) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, rgba(5, 150, 105, 0.06) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(8, 145, 178, 0.08) 0px, transparent 50%);
+}
+
+/* Gradient mesh background - dark mode */
+.dark .gradient-mesh {
+  background-image:
     radial-gradient(at 40% 20%, rgba(34, 211, 238, 0.15) 0px, transparent 50%),
     radial-gradient(at 80% 0%, rgba(16, 185, 129, 0.1) 0px, transparent 50%),
     radial-gradient(at 0% 50%, rgba(34, 211, 238, 0.1) 0px, transparent 50%),
@@ -107,8 +159,15 @@ section {
   position: relative;
 }
 
-/* Glass effect */
+/* Glass effect - light mode */
 .glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+
+/* Glass effect - dark mode */
+.dark .glass {
   background: rgba(18, 18, 26, 0.8);
   backdrop-filter: blur(12px);
   border: 1px solid var(--border);

@@ -119,7 +119,7 @@ export const education = {
   degree: "B.Tech in AI & Data Science",
   institution: "SRM Easwari Engineering College",
   period: "2020 - 2024",
-  cgpa: "8.47",
+  cgpa: "8.57",
 };
 
 export const navLinks = [
@@ -128,5 +128,6 @@ export const navLinks = [
   { name: "Projects", href: "#projects" },
   { name: "Experience", href: "#experience" },
   { name: "Education", href: "#education" },
+  { name: "Blogs", href: "/blogs" },
   { name: "Contact", href: "#contact" },
 ];
