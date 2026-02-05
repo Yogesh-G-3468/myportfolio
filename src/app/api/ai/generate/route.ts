@@ -99,13 +99,21 @@ export async function POST(request: NextRequest) {
             3. **Excerpt**: A compelling 2-sentence hook.
             4. **Content (Markdown)**: 
                - Write a full, long-form technical article.
-               - Used code blocks where appropriate (infer from context).
+               - **Aesthetics & Formatting (CRITICAL)**:
+                 - Use **H2** and **H3** headers frequently to break up text.
+                 - Keep paragraphs short (2-3 sentences max) for better readability ("breathable text").
+                 - Use **Bold** for key concepts and emphasis.
+                 - Use *Italics* for subtle emphasis.
+                 - Use `> Blockquotes` for key takeaways, important notes, or summaries.
+                 - Use Bullet points and Numbered lists liberally to organize information.
+                 - Use Tables for comparisons if applicable.
+                 - Use Code blocks with language specification (e.g., \`\`\`python).
                - **IMPORTANT: Image Handling**: 
                  - DO NOT generate actual images.
                  - **Manually insert prompts for where images should be.** 
                  - Format: \`> **Image Prompt:** [Detailed description of what the image should show]\`
                  - Place these prompts naturally throughout the text (e.g., after an intro, before a complex section).
-                 - Include one **Cover Image Prompt** at the very beginning of the content body or in a special section.
+                 - Include one **Cover Image Prompt** at the very beginning of the content body.
             5. **Format**: Return ONLY valid JSON with keys: "title", "slug", "excerpt", "content".
         `;
 

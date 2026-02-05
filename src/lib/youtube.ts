@@ -58,22 +58,29 @@ export class YouTubeTranscriptExtractor {
      */
     async getVideoTranscript(videoId: string): Promise<VideoTranscript | null> {
         try {
-            // Attempt 1: youtube-transcript-plus npm package
+            // Attempt 1: youtube-transcript npm package (Standard)
             try {
-                const { fetchTranscript } = await import('youtube-transcript-plus');
+                const { YoutubeTranscript } = await import('youtube-transcript');
 
-                console.log('Fetching transcript with youtube-transcript-plus...');
-                const transcript = await fetchTranscript(videoId);
-                console.log('Transcript fetched, length:', transcript.length);
+                console.log(`Fetching transcript for ${videoId} using youtube-transcript...`);
+
+                // Fetch with default config
+                const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
+
+                if (!transcriptItems || transcriptItems.length === 0) {
+                    throw new Error('Empty transcript returned');
+                }
+
+                console.log('Transcript fetched, length:', transcriptItems.length);
 
                 // Convert transcript items to text
-                const transcriptText = transcript
-                    .map((item: TranscriptItem) => item.text)
+                const transcriptText = transcriptItems
+                    .map((item) => item.text)
                     .join(' ');
 
                 // Calculate total duration
-                const duration = transcript.reduce(
-                    (sum: number, item: TranscriptItem) => sum + item.duration,
+                const duration = transcriptItems.reduce(
+                    (sum, item) => sum + item.duration,
                     0
                 );
 
@@ -83,19 +90,26 @@ export class YouTubeTranscriptExtractor {
                     transcriptText,
                     duration
                 };
-            } catch (err) {
-                console.warn(`youtube-transcript-plus failed for ${videoId}, falling back to yt-dlp...`, err);
+            } catch (err: any) {
+                console.warn(`youtube-transcript failed for ${videoId}:`, err.message);
+                // Continue to fallback
             }
 
-            // Attempt 2: yt-dlp Fallback (Robust Plan C)
-            const ytdlpText = await this._getTranscriptYtDlp(videoId);
-            if (ytdlpText) {
-                return {
-                    videoId,
-                    title: `Video ${videoId}`,
-                    transcriptText: ytdlpText,
-                    duration: 0
-                };
+            // Attempt 2: yt-dlp Fallback (Works LOCALLY, fails on Vercel usually)
+            // This is kept for local development reliability.
+            if (process.env.NODE_ENV === 'development') {
+                console.log('Attempting local yt-dlp fallback...');
+                const ytdlpText = await this._getTranscriptYtDlp(videoId);
+                if (ytdlpText) {
+                    return {
+                        videoId,
+                        title: `Video ${videoId}`,
+                        transcriptText: ytdlpText,
+                        duration: 0
+                    };
+                }
+            } else {
+                console.warn('Skipping yt-dlp fallback in production (requires Python/binary).');
             }
 
             return null;
