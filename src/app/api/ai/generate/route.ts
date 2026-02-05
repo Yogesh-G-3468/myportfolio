@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
                  - Keep paragraphs short (2-3 sentences max) for better readability ("breathable text").
                  - Use **Bold** for key concepts and emphasis.
                  - Use *Italics* for subtle emphasis.
-                 - Use `> Blockquotes` for key takeaways, important notes, or summaries.
+                 - Use \`> Blockquotes\` for key takeaways, important notes, or summaries.
                  - Use Bullet points and Numbered lists liberally to organize information.
                  - Use Tables for comparisons if applicable.
                  - Use Code blocks with language specification (e.g., \`\`\`python).
