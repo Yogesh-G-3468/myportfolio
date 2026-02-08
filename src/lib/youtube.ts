@@ -58,11 +58,11 @@ export class YouTubeTranscriptExtractor {
      */
     async getVideoTranscript(videoId: string): Promise<VideoTranscript | null> {
         try {
-            // Attempt 1: youtube-transcript npm package (Standard)
+            // Attempt 1: youtube-transcript-api-ts npm package (Standard)
             try {
-                const { YoutubeTranscript } = await import('youtube-transcript');
+                const { YoutubeTranscript } = await import('youtube-transcript-api-ts');
 
-                console.log(`Fetching transcript for ${videoId} using youtube-transcript...`);
+                console.log(`Fetching transcript for ${videoId} using youtube-transcript-api-ts...`);
 
                 // Fetch with default config
                 const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
@@ -91,7 +91,7 @@ export class YouTubeTranscriptExtractor {
                     duration
                 };
             } catch (err: any) {
-                console.warn(`youtube-transcript failed for ${videoId}:`, err.message);
+                console.warn(`youtube-transcript-api-ts failed for ${videoId}:`, err.message);
                 // Continue to fallback
             }
 
