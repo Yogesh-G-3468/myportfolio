@@ -58,45 +58,21 @@ export class YouTubeTranscriptExtractor {
      */
     async getVideoTranscript(videoId: string): Promise<VideoTranscript | null> {
         try {
-            // Attempt 1: youtube-transcript-api-ts npm package (Standard)
-            try {
-                const { YoutubeTranscript } = await import('youtube-transcript-api-ts');
+            console.log(`Fetching transcript for ${videoId} using manual extraction...`);
 
-                console.log(`Fetching transcript for ${videoId} using youtube-transcript-api-ts...`);
+            // Attempt 1: Manual Extraction (Most robust for Vercel)
+            const manualTranscript = await this._fetchTranscriptManual(videoId);
 
-                // Fetch with default config
-                const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
-
-                if (!transcriptItems || transcriptItems.length === 0) {
-                    throw new Error('Empty transcript returned');
-                }
-
-                console.log('Transcript fetched, length:', transcriptItems.length);
-
-                // Convert transcript items to text
-                const transcriptText = transcriptItems
-                    .map((item) => item.text)
-                    .join(' ');
-
-                // Calculate total duration
-                const duration = transcriptItems.reduce(
-                    (sum, item) => sum + item.duration,
-                    0
-                );
-
+            if (manualTranscript) {
                 return {
                     videoId,
-                    title: `Video ${videoId}`, // Will be enhanced by metadata
-                    transcriptText,
-                    duration
+                    title: `Video ${videoId}`,
+                    transcriptText: manualTranscript,
+                    duration: 0 // We could calculate this if needed, but for now 0 is fine
                 };
-            } catch (err: any) {
-                console.warn(`youtube-transcript-api-ts failed for ${videoId}:`, err.message);
-                // Continue to fallback
             }
 
             // Attempt 2: yt-dlp Fallback (Works LOCALLY, fails on Vercel usually)
-            // This is kept for local development reliability.
             if (process.env.NODE_ENV === 'development') {
                 console.log('Attempting local yt-dlp fallback...');
                 const ytdlpText = await this._getTranscriptYtDlp(videoId);
@@ -118,6 +94,92 @@ export class YouTubeTranscriptExtractor {
             console.error(`Error fetching transcript for ${videoId}:`, error);
             return null;
         }
+    }
+
+    /**
+     * Manual transcript extraction (Ports logic from test.js)
+     */
+    async _fetchTranscriptManual(videoId: string, lang = "en"): Promise<string | null> {
+        try {
+            const url = `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+
+            const response = await fetch(url, {
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept-Language": "en-US,en;q=0.9",
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch video page: ${response.statusText}`);
+            }
+
+            const html = await response.text();
+
+            const pr = this.extractPlayerResponse(html);
+            if (!pr) return null;
+
+            const track = this.pickTrack(pr, lang);
+
+            if (!track || !track.baseUrl) {
+                console.warn(`No caption track found for lang=${lang}`);
+                return null;
+            }
+
+            const captionsUrl = `${track.baseUrl}&fmt=json3`;
+            const captionsRes = await fetch(captionsUrl, {
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                }
+            });
+
+            if (!captionsRes.ok) {
+                throw new Error(`Failed to fetch captions: ${captionsRes.statusText}`);
+            }
+
+            const body = await captionsRes.text();
+            const json = JSON.parse(body);
+
+            if (json.events) {
+                return json.events
+                    .filter((e: any) => e.segs)
+                    .map((e: any) => e.segs.map((s: any) => s.utf8).join(''))
+                    .join(' ')
+                    .replace(/\n/g, ' ');
+            }
+
+            return null;
+        } catch (error) {
+            console.error('Manual transcript fetch failed:', error);
+            return null;
+        }
+    }
+
+    extractPlayerResponse(html: string): any {
+        const m = html.match(/ytInitialPlayerResponse\s*=\s*(\{[\s\S]+?\})\s*;/);
+        if (!m) {
+            console.warn("ytInitialPlayerResponse not found");
+            return null;
+        }
+        return JSON.parse(m[1]);
+    }
+
+    pickTrack(playerResponse: any, lang: string, preferAuto = false): any {
+        const tracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+
+        if (!tracks?.length) return null;
+
+        // kind === "asr" means auto-generated captions
+        const filtered = tracks.filter((t: any) => t.languageCode === lang);
+        if (!filtered.length) {
+            // Try to find any English if exact match failed
+            const en = tracks.find((t: any) => t.languageCode.startsWith('en'));
+            if (en) return en;
+            return tracks[0]; // Fallback to first available
+        }
+
+        if (preferAuto) return filtered.find((t: any) => t.kind === "asr") ?? filtered[0];
+        return filtered.find((t: any) => t.kind !== "asr") ?? filtered[0];
     }
 
     /**
