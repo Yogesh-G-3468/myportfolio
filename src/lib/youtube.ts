@@ -1,4 +1,6 @@
 // Types and Interfaces
+import { YoutubeTranscript } from 'youtube-transcript-api-ts';
+
 export interface VideoTranscript {
     videoId: string;
     title: string;
@@ -56,202 +58,47 @@ export class YouTubeTranscriptExtractor {
     /**
      * Get transcript for a single video with error handling
      */
+
+    /**
+     * Get transcript for a single video using youtube-transcript-api-ts
+     */
     async getVideoTranscript(videoId: string): Promise<VideoTranscript | null> {
         try {
-            console.log(`Fetching transcript for ${videoId} using manual extraction...`);
+            console.log(`Fetching transcript for ${videoId} using youtube-transcript-api-ts...`);
 
-            // Attempt 1: Manual Extraction (Most robust for Vercel)
-            const manualTranscript = await this._fetchTranscriptManual(videoId);
+            // Fetch transcript as text
+            // Note: The library type definition for 'val' in fetchTranscript might need casting or handling based on options
+            const transcriptText = await YoutubeTranscript.fetchTranscript(videoId, {
+                lang: 'en',
+                country: 'US',
+                format: 'text' // We request text format directly
+            });
 
-            if (manualTranscript) {
+            // The library returns a string when format is 'text', or array of objects otherwise.
+            // However, TypeScript might infer it as a union type. We perform a runtime check/cast if needed,
+            // but usually it just works if the library types are correct. 
+            // Based on the user snippet, it returns string.
+
+            if (typeof transcriptText === 'string') {
                 return {
                     videoId,
-                    title: `Video ${videoId}`,
-                    transcriptText: manualTranscript,
-                    duration: 0 // We could calculate this if needed, but for now 0 is fine
+                    title: `Video ${videoId}`, // We don't get title from this API, keeping placeholder
+                    transcriptText: transcriptText,
+                    duration: 0 // Duration not available in text format
                 };
-            }
-
-            // Attempt 2: yt-dlp Fallback (Works LOCALLY, fails on Vercel usually)
-            if (process.env.NODE_ENV === 'development') {
-                console.log('Attempting local yt-dlp fallback...');
-                const ytdlpText = await this._getTranscriptYtDlp(videoId);
-                if (ytdlpText) {
-                    return {
-                        videoId,
-                        title: `Video ${videoId}`,
-                        transcriptText: ytdlpText,
-                        duration: 0
-                    };
-                }
             } else {
-                console.warn('Skipping yt-dlp fallback in production (requires Python/binary).');
+                console.warn('Unexpected transcript format returned');
+                return null;
             }
-
-            return null;
 
         } catch (error) {
             console.error(`Error fetching transcript for ${videoId}:`, error);
-            return null;
+            return null; // The existing logic handles null as error in the API route
         }
     }
 
-    /**
-     * Manual transcript extraction (Ports logic from test.js)
-     */
-    async _fetchTranscriptManual(videoId: string, lang = "en"): Promise<string | null> {
-        try {
-            const url = `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+    // Removed _fetchTranscriptManual and _getTranscriptYtDlp as they are superseded by the new library.
 
-            const response = await fetch(url, {
-                headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                    "Accept-Language": "en-US,en;q=0.9",
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch video page: ${response.statusText}`);
-            }
-
-            const html = await response.text();
-
-            const pr = this.extractPlayerResponse(html);
-            if (!pr) return null;
-
-            const track = this.pickTrack(pr, lang);
-
-            if (!track || !track.baseUrl) {
-                console.warn(`No caption track found for lang=${lang}`);
-                return null;
-            }
-
-            const captionsUrl = `${track.baseUrl}&fmt=json3`;
-            const captionsRes = await fetch(captionsUrl, {
-                headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                }
-            });
-
-            if (!captionsRes.ok) {
-                throw new Error(`Failed to fetch captions: ${captionsRes.statusText}`);
-            }
-
-            const body = await captionsRes.text();
-            const json = JSON.parse(body);
-
-            if (json.events) {
-                return json.events
-                    .filter((e: any) => e.segs)
-                    .map((e: any) => e.segs.map((s: any) => s.utf8).join(''))
-                    .join(' ')
-                    .replace(/\n/g, ' ');
-            }
-
-            return null;
-        } catch (error) {
-            console.error('Manual transcript fetch failed:', error);
-            return null;
-        }
-    }
-
-    extractPlayerResponse(html: string): any {
-        const m = html.match(/ytInitialPlayerResponse\s*=\s*(\{[\s\S]+?\})\s*;/);
-        if (!m) {
-            console.warn("ytInitialPlayerResponse not found");
-            return null;
-        }
-        return JSON.parse(m[1]);
-    }
-
-    pickTrack(playerResponse: any, lang: string, preferAuto = false): any {
-        const tracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-
-        if (!tracks?.length) return null;
-
-        // kind === "asr" means auto-generated captions
-        const filtered = tracks.filter((t: any) => t.languageCode === lang);
-        if (!filtered.length) {
-            // Try to find any English if exact match failed
-            const en = tracks.find((t: any) => t.languageCode.startsWith('en'));
-            if (en) return en;
-            return tracks[0]; // Fallback to first available
-        }
-
-        if (preferAuto) return filtered.find((t: any) => t.kind === "asr") ?? filtered[0];
-        return filtered.find((t: any) => t.kind !== "asr") ?? filtered[0];
-    }
-
-    /**
-     * Fetch transcript using yt-dlp JSON dump (Fallback)
-     */
-    async _getTranscriptYtDlp(videoId: string): Promise<string | null> {
-        try {
-            console.log('Importing yt-dlp-exec for transcript fallback...');
-            const ytdlpModule = await import('yt-dlp-exec');
-            const ytdlp = ytdlpModule.default || ytdlpModule;
-            const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-
-            // Fetch metadata including subtitle URLs
-            const output = await ytdlp(videoUrl, {
-                dumpSingleJson: true,
-                skipDownload: true,
-                writeAutoSub: true,
-                writeSub: true,
-                noWarnings: true,
-                noCheckCertificate: true,
-            } as any) as any;
-
-            // Check for manual captions or auto-generated captions
-            let captionUrl = null;
-
-            if (output.subtitles && output.subtitles.en) {
-                captionUrl = output.subtitles.en[0].url;
-            } else if (output.automatic_captions) {
-                const enCap = output.automatic_captions.en || output.automatic_captions['en-orig'];
-                if (enCap) captionUrl = enCap[0].url;
-            }
-
-            if (!captionUrl) {
-                console.warn('No English captions found in yt-dlp output');
-                return null;
-            }
-
-            console.log('Fetching captions from URL:', captionUrl);
-            const res = await fetch(captionUrl);
-            if (!res.ok) throw new Error('Failed to download caption file');
-
-            const text = await res.text();
-
-            // Clean up VTT/JSON/XML
-            try {
-                const json = JSON.parse(text);
-                if (json.events) {
-                    return json.events
-                        .filter((e: any) => e.segs)
-                        .map((e: any) => e.segs.map((s: any) => s.utf8).join(''))
-                        .join(' ')
-                        .replace(/\n/g, ' ');
-                }
-            } catch (e) {
-                if (text.includes('<text')) {
-                    return text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-                }
-                if (text.includes('WEBVTT')) {
-                    return text
-                        .split('\n')
-                        .filter(line => !line.includes('-->') && line.trim() !== '' && line !== 'WEBVTT')
-                        .join(' ');
-                }
-            }
-
-            return text;
-
-        } catch (err) {
-            console.error('yt-dlp transcript fetch failed:', err);
-            return null;
-        }
-    }
 
     /**
      * Get all video IDs from a playlist using yt-dlp-exec
