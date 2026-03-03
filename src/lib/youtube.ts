@@ -1,5 +1,5 @@
 import { YoutubeTranscript } from 'youtube-transcript-api-ts';
-import { Innertube } from 'youtubei.js';
+import { Innertube, ClientType } from 'youtubei.js';
 import axios from 'axios';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 
@@ -60,7 +60,7 @@ async function getInnertube(): Promise<Innertube> {
             lang: 'en',
             location: 'US',
             retrieve_player: false,
-            client_type: 'WEB',
+            client_type: ClientType.WEB,
             generate_session_locally: true
         });
     }
