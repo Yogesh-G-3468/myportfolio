@@ -20,7 +20,7 @@ export default function SectionWrapper({
     subtitle,
 }: SectionWrapperProps) {
     const ref = useRef(null);
-    const isInView = useInView(ref, { once: true, margin: "-100px" });
+    const isInView = useInView(ref, { once: true, margin: "-80px" });
 
     return (
         <section
@@ -28,30 +28,29 @@ export default function SectionWrapper({
             ref={ref}
             className={`py-20 sm:py-28 px-4 sm:px-6 lg:px-8 ${className}`}
         >
-            <div className="max-w-6xl mx-auto">
+            <div className="max-w-3xl mx-auto">
                 {title && (
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: 14 }}
+                        animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
                         transition={{ duration: 0.5 }}
-                        className="text-center mb-12"
+                        className="mb-10"
                     >
-                        <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-                            <span className="bg-gradient-to-r from-foreground to-accent bg-clip-text text-transparent">
-                                {title}
-                            </span>
+                        <h2 className="font-[family-name:var(--font-instrument-serif)] text-3xl sm:text-4xl text-foreground mb-2">
+                            {title}
                         </h2>
                         {subtitle && (
-                            <p className="text-foreground-secondary max-w-2xl mx-auto">
+                            <p className="text-foreground-secondary text-sm">
                                 {subtitle}
                             </p>
                         )}
+                        <div className="mt-3 w-12 h-0.5 bg-accent rounded-full" />
                     </motion.div>
                 )}
                 <motion.div
-                    initial={{ opacity: 0, y: 40 }}
-                    animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
-                    transition={{ duration: 0.6, delay: 0.2 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+                    transition={{ duration: 0.5, delay: 0.1 }}
                 >
                     {children}
                 </motion.div>

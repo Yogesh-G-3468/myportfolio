@@ -1,135 +1,95 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Github, Linkedin, Mail, ArrowDown, Download } from "lucide-react";
+import { ArrowDown, Download, Github, Linkedin, Mail } from "lucide-react";
 import { personalInfo } from "@/lib/data";
 
 export default function Hero() {
-    const scrollToProjects = () => {
-        const element = document.querySelector("#projects");
-        if (element) {
-            element.scrollIntoView({ behavior: "smooth" });
-        }
-    };
-
     return (
         <section
             id="hero"
-            className="relative min-h-screen flex items-center justify-center overflow-hidden gradient-mesh"
+            className="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 relative"
         >
-            {/* Animated background elements */}
-            <div className="absolute inset-0 overflow-hidden">
-                <motion.div
-                    animate={{
-                        scale: [1, 1.2, 1],
-                        opacity: [0.3, 0.5, 0.3],
-                    }}
-                    transition={{
-                        duration: 8,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                    }}
-                    className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl"
-                />
-                <motion.div
-                    animate={{
-                        scale: [1.2, 1, 1.2],
-                        opacity: [0.2, 0.4, 0.2],
-                    }}
-                    transition={{
-                        duration: 10,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                    }}
-                    className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent-secondary/10 rounded-full blur-3xl"
-                />
-            </div>
+            {/* Subtle warm accent glow */}
+            <div className="absolute top-1/3 -left-32 w-96 h-96 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-1/4 -right-32 w-80 h-80 bg-accent-secondary/5 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                {/* Name */}
+            <div className="max-w-3xl mx-auto w-full text-center">
                 <motion.div
-                    initial={{ opacity: 0, y: 30 }}
+                    initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6 }}
                 >
-                    <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-4">
-                        <span className="bg-gradient-to-r from-foreground via-accent to-accent-secondary bg-clip-text text-transparent">
-                            {personalInfo.name}
-                        </span>
+                    <p className="text-accent text-sm font-medium tracking-wide uppercase mb-4">
+                        Software Engineer
+                    </p>
+                    <h1 className="font-[family-name:var(--font-instrument-serif)] text-5xl sm:text-6xl md:text-8xl text-foreground mb-6 leading-[1.05]">
+                        Yogeshwaran <span className="italic text-accent">G</span>
                     </h1>
                 </motion.div>
 
-                {/* Tagline */}
                 <motion.p
-                    initial={{ opacity: 0, y: 30 }}
+                    initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.1 }}
-                    className="text-lg sm:text-xl text-accent mb-6"
-                >
-                    {personalInfo.tagline}
-                </motion.p>
-
-                {/* Description */}
-                <motion.p
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.2 }}
-                    className="text-base sm:text-lg text-foreground-secondary max-w-2xl mx-auto mb-8"
+                    transition={{ duration: 0.6, delay: 0.15 }}
+                    className="text-foreground-secondary text-lg sm:text-xl mb-10 max-w-xl mx-auto leading-relaxed"
                 >
                     {personalInfo.description}
                 </motion.p>
 
-                {/* CTA Buttons */}
                 <motion.div
-                    initial={{ opacity: 0, y: 30 }}
+                    initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.3 }}
-                    className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10"
+                    className="flex flex-wrap items-center justify-center gap-3 mb-12"
                 >
-                    <button
-                        onClick={scrollToProjects}
-                        className="group px-8 py-3 rounded-full bg-gradient-to-r from-accent to-accent-secondary text-background font-medium transition-all duration-300 hover:shadow-lg hover:shadow-accent/25 hover:scale-105"
+                    <a
+                        href="#projects"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            document.querySelector("#projects")?.scrollIntoView({ behavior: "smooth" });
+                        }}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground text-background text-sm font-medium hover:bg-accent transition-colors"
                     >
                         View Projects
-                    </button>
+                    </a>
                     <a
                         href={personalInfo.resumeUrl}
                         download
-                        className="flex items-center gap-2 px-8 py-3 rounded-full border border-border text-foreground hover:border-accent hover:text-accent transition-all duration-300"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-border text-foreground text-sm font-medium hover:border-accent hover:text-accent transition-colors"
                     >
-                        <Download size={18} />
-                        Download Resume
+                        <Download size={14} />
+                        Resume
                     </a>
                 </motion.div>
 
-                {/* Social Links */}
                 <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.4 }}
-                    className="flex items-center justify-center gap-6"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.6, delay: 0.45 }}
+                    className="flex items-center justify-center gap-5"
                 >
-                    <a
-                        href={personalInfo.linkedin}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-3 rounded-full bg-background-elevated border border-border text-foreground-secondary hover:text-accent hover:border-accent transition-all duration-300 hover:scale-110"
-                        aria-label="LinkedIn"
-                    >
-                        <Linkedin size={20} />
-                    </a>
                     <a
                         href={personalInfo.github}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-3 rounded-full bg-background-elevated border border-border text-foreground-secondary hover:text-accent hover:border-accent transition-all duration-300 hover:scale-110"
+                        className="text-foreground-secondary hover:text-accent transition-colors"
                         aria-label="GitHub"
                     >
                         <Github size={20} />
                     </a>
                     <a
+                        href={personalInfo.linkedin}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-foreground-secondary hover:text-accent transition-colors"
+                        aria-label="LinkedIn"
+                    >
+                        <Linkedin size={20} />
+                    </a>
+                    <a
                         href={`mailto:${personalInfo.email}`}
-                        className="p-3 rounded-full bg-background-elevated border border-border text-foreground-secondary hover:text-accent hover:border-accent transition-all duration-300 hover:scale-110"
+                        className="text-foreground-secondary hover:text-accent transition-colors"
                         aria-label="Email"
                     >
                         <Mail size={20} />
@@ -141,20 +101,18 @@ export default function Hero() {
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 1, delay: 1 }}
-                className="absolute bottom-8 left-1/2 transform -translate-x-1/2"
+                transition={{ duration: 0.6, delay: 1 }}
+                className="absolute bottom-8 left-1/2 -translate-x-1/2"
             >
-                <motion.div
-                    animate={{ y: [0, 10, 0] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                    className="text-foreground-secondary cursor-pointer"
-                    onClick={() => {
-                        const element = document.querySelector("#about");
-                        if (element) element.scrollIntoView({ behavior: "smooth" });
-                    }}
+                <motion.button
+                    animate={{ y: [0, 6, 0] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    onClick={() => document.querySelector("#about")?.scrollIntoView({ behavior: "smooth" })}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label="Scroll down"
                 >
-                    <ArrowDown size={24} />
-                </motion.div>
+                    <ArrowDown size={18} />
+                </motion.button>
             </motion.div>
         </section>
     );

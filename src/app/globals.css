@@ -1,32 +1,36 @@
 @import "tailwindcss";
 
 :root {
-  /* Light theme (default) */
-  --background: #fafafa;
+  /* Light theme — warm with a distinct accent */
+  --background: #faf9f7;
   --background-elevated: #ffffff;
-  --foreground: #0f172a;
-  --foreground-secondary: #64748b;
-  --accent: #0891b2;
-  --accent-secondary: #059669;
-  --border: #e2e8f0;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
+  --foreground: #1a1a1a;
+  --foreground-secondary: #5c5c5c;
+  --accent: #c45d3e;
+  --accent-light: #f0ddd6;
+  --accent-secondary: #2d5a7b;
+  --border: #e8e5e1;
+  --muted: #f3f1ee;
+  --muted-foreground: #8a8784;
   --card: #ffffff;
-  --primary: #0891b2;
+  --primary: #1a1a1a;
+  --link: #c45d3e;
 }
 
 .dark {
-  --background: #0a0a0f;
-  --background-elevated: #12121a;
-  --foreground: #f8fafc;
-  --foreground-secondary: #94a3b8;
-  --accent: #22d3ee;
-  --accent-secondary: #10b981;
-  --border: #1e1e2e;
-  --muted: #1e1e2e;
-  --muted-foreground: #94a3b8;
-  --card: #12121a;
-  --primary: #22d3ee;
+  --background: #0f0f0f;
+  --background-elevated: #191919;
+  --foreground: #e8e6e3;
+  --foreground-secondary: #999895;
+  --accent: #e8825e;
+  --accent-light: #2e1f18;
+  --accent-secondary: #6dacde;
+  --border: #2a2927;
+  --muted: #1e1d1c;
+  --muted-foreground: #6e6d6a;
+  --card: #191919;
+  --primary: #e8e6e3;
+  --link: #e8825e;
 }
 
 @theme inline {
@@ -35,14 +39,16 @@
   --color-foreground: var(--foreground);
   --color-foreground-secondary: var(--foreground-secondary);
   --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
   --color-accent-secondary: var(--accent-secondary);
   --color-border: var(--border);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-card: var(--card);
   --color-primary: var(--primary);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-link: var(--link);
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-instrument-serif);
 }
 
 html {
@@ -52,44 +58,38 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
 }
 
 /* Theme transition */
 html,
 body {
-  transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* *:not(html):not(body) {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-duration: 300ms;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-} */
-
-/* Custom scrollbar */
+/* Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--background);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
   background: var(--border);
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--foreground-secondary);
 }
 
-/* Animation utilities */
-@keyframes fadeInUp {
+/* Subtle animations */
+@keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(12px);
   }
 
   to {
@@ -98,60 +98,14 @@ body {
   }
 }
 
-@keyframes float {
-
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-10px);
-  }
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
 }
 
-@keyframes pulse-glow {
-
-  0%,
-  100% {
-    box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);
-  }
-
-  50% {
-    box-shadow: 0 0 40px rgba(34, 211, 238, 0.6);
-  }
-}
-
-.animate-fade-in-up {
-  animation: fadeInUp 0.6s ease-out forwards;
-}
-
-.animate-float {
-  animation: float 3s ease-in-out infinite;
-}
-
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
-/* Gradient mesh background - light mode */
-.gradient-mesh {
-  background-image:
-    radial-gradient(at 40% 20%, rgba(8, 145, 178, 0.1) 0px, transparent 50%),
-    radial-gradient(at 80% 0%, rgba(5, 150, 105, 0.08) 0px, transparent 50%),
-    radial-gradient(at 0% 50%, rgba(8, 145, 178, 0.08) 0px, transparent 50%),
-    radial-gradient(at 80% 50%, rgba(5, 150, 105, 0.06) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, rgba(8, 145, 178, 0.08) 0px, transparent 50%);
-}
-
-/* Gradient mesh background - dark mode */
-.dark .gradient-mesh {
-  background-image:
-    radial-gradient(at 40% 20%, rgba(34, 211, 238, 0.15) 0px, transparent 50%),
-    radial-gradient(at 80% 0%, rgba(16, 185, 129, 0.1) 0px, transparent 50%),
-    radial-gradient(at 0% 50%, rgba(34, 211, 238, 0.1) 0px, transparent 50%),
-    radial-gradient(at 80% 50%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, rgba(34, 211, 238, 0.1) 0px, transparent 50%);
+/* Selection */
+::selection {
+  background: var(--accent);
+  color: var(--background);
 }
 
 /* Section styling */
@@ -159,16 +113,13 @@ section {
   position: relative;
 }
 
-/* Glass effect - light mode */
-.glass {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border);
-}
-
-/* Glass effect - dark mode */
-.dark .glass {
-  background: rgba(18, 18, 26, 0.8);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border);
+/* Subtle grain texture overlay */
+.grain::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  z-index: 100;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
 }
