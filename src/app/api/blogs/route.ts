@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
         let blogs;
         if (showAll) {
             // For admin - check auth
-            const auth = requireAuth(request);
+            const auth = await requireAuth(request);
             if (!auth.authorized) {
                 // If not authenticated, only show published
                 blogs = await sql`
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/blogs - Create a new blog (protected)
 export async function POST(request: NextRequest) {
-    const auth = requireAuth(request);
+    const auth = await requireAuth(request);
     if (!auth.authorized) {
         return auth.response;
     }

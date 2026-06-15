@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/auth';
 
 // POST /api/init - Initialize the database (protected)
 export async function POST(request: NextRequest) {
-    const auth = requireAuth(request);
+    const auth = await requireAuth(request);
     if (!auth.authorized) {
         return auth.response;
     }

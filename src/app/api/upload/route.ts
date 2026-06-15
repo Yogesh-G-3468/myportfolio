@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/auth';
 
 // POST /api/upload - Upload image to Cloudinary (protected)
 export async function POST(request: NextRequest) {
-    const auth = requireAuth(request);
+    const auth = await requireAuth(request);
     if (!auth.authorized) {
         console.log('Upload failed: Unauthorized');
         return auth.response;

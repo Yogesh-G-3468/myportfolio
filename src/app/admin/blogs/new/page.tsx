@@ -26,7 +26,16 @@ export default function NewBlogPage() {
     const contentRef = useRef<HTMLTextAreaElement>(null);
     const router = useRouter();
 
-    const getToken = () => localStorage.getItem('admin_token');
+    // Utility to get cookie
+    const getCookie = (name: string) => {
+        if (typeof document === 'undefined') return undefined;
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop()?.split(';').shift();
+        return undefined;
+    };
+
+    const getToken = () => getCookie('admin_token') || localStorage.getItem('admin_token');
 
     useEffect(() => {
         if (!getToken()) {
@@ -195,6 +204,7 @@ export default function NewBlogPage() {
 
             if (res.status === 401) {
                 localStorage.removeItem('admin_token');
+                document.cookie = 'admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
                 router.push('/admin');
                 return;
             }

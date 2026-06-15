@@ -5,7 +5,7 @@ import { YouTubeTranscriptExtractor } from '@/lib/youtube';
 
 export async function POST(request: NextRequest) {
     // 1. Auth Check
-    const auth = requireAuth(request);
+    const auth = await requireAuth(request);
     if (!auth.authorized) {
         return auth.response;
     }

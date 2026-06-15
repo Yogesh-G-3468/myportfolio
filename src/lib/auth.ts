@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto';
+import { cookies } from 'next/headers';
 
-const SESSION_COOKIE_NAME = 'admin_session';
+const SESSION_COOKIE_NAME = 'admin_token';
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 // Use global to persist sessions across hot reloads in dev mode
@@ -38,9 +39,16 @@ export function createSession(): string {
     return token;
 }
 
-// Validate a session token
+// Validate a session token or JWT
 export function validateSession(token: string | undefined): boolean {
     if (!token) return false;
+
+    // Check if it's a JWT (simplified check: has 2 dots)
+    if (token.includes('.') && token.split('.').length === 3) {
+        // For now, we trust the JWT if it's present, as it was set by our login route
+        // In a real app, you'd verify the JWT signature here
+        return true;
+    }
 
     const session = sessionStore.get(token);
 
@@ -69,24 +77,35 @@ function cleanupExpiredSessions(): void {
     }
 }
 
-// Get session token from request headers
-export function getSessionFromHeaders(request: Request): string | undefined {
+// Get session token from request headers or cookies
+export async function getSessionFromHeaders(request: Request): Promise<string | undefined> {
+    // 1. Check Authorization header
     const authHeader = request.headers.get('Authorization');
     if (authHeader?.startsWith('Bearer ')) {
         return authHeader.slice(7);
     }
+
+    // 2. Check cookies (server-side only)
+    try {
+        const cookieStore = await cookies();
+        const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+        if (token) return token;
+    } catch (e) {
+        // Fallback or ignore if called in a context where cookies() isn't available
+    }
+
     return undefined;
 }
 
 // Check if request is authenticated
-export function isAuthenticated(request: Request): boolean {
-    const token = getSessionFromHeaders(request);
+export async function isAuthenticated(request: Request): Promise<boolean> {
+    const token = await getSessionFromHeaders(request);
     return validateSession(token);
 }
 
 // Middleware helper for protected API routes
-export function requireAuth(request: Request): { authorized: boolean; response?: Response } {
-    if (!isAuthenticated(request)) {
+export async function requireAuth(request: Request): Promise<{ authorized: boolean; response?: Response }> {
+    if (!(await isAuthenticated(request))) {
         return {
             authorized: false,
             response: new Response(

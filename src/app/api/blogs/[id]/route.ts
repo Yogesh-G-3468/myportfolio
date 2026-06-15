@@ -41,7 +41,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 // PUT /api/blogs/[id] - Update a blog (protected)
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-    const auth = requireAuth(request);
+    const auth = await requireAuth(request);
     if (!auth.authorized) {
         return auth.response;
     }
@@ -99,7 +99,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
 // DELETE /api/blogs/[id] - Delete a blog (protected)
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-    const auth = requireAuth(request);
+    const auth = await requireAuth(request);
     if (!auth.authorized) {
         return auth.response;
     }

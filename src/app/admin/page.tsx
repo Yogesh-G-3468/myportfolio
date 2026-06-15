@@ -4,15 +4,25 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function AdminPage() {
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [checkingAuth, setCheckingAuth] = useState(true);
     const router = useRouter();
 
+    // Utility to get cookie
+    const getCookie = (name: string) => {
+        if (typeof document === 'undefined') return undefined;
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop()?.split(';').shift();
+        return undefined;
+    };
+
     useEffect(() => {
-        // Check if already logged in
-        const token = localStorage.getItem('admin_token');
+        // Check if already logged in via cookie or localStorage
+        const token = getCookie('admin_token') || localStorage.getItem('admin_token');
         if (token) {
             router.push('/admin/blogs');
         } else {
@@ -29,7 +39,7 @@ export default function AdminPage() {
             const res = await fetch('/api/auth', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password }),
+                body: JSON.stringify({ username, password }),
             });
 
             const data = await res.json();
@@ -40,6 +50,8 @@ export default function AdminPage() {
                 return;
             }
 
+            // The token is now also set in cookies by the API route
+            // For extra layer, we'll store it in localStorage as well for now
             localStorage.setItem('admin_token', data.token);
             router.push('/admin/blogs');
         } catch (err) {
@@ -63,11 +75,29 @@ export default function AdminPage() {
                     <div className="text-center mb-8">
                         <h1 className="text-2xl font-bold text-foreground mb-2">Admin Access</h1>
                         <p className="text-muted-foreground text-sm">
-                            Enter your password to manage blogs
+                            Enter your credentials to continue
                         </p>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-6">
+                        <div>
+                            <label
+                                htmlFor="username"
+                                className="block text-sm font-medium text-foreground mb-2"
+                            >
+                                Username
+                            </label>
+                            <input
+                                type="text"
+                                id="username"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                                placeholder="Enter admin username"
+                                required
+                            />
+                        </div>
+
                         <div>
                             <label
                                 htmlFor="password"
