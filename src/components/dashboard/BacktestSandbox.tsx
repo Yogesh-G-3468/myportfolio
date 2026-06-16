@@ -294,7 +294,8 @@ export const BacktestSandbox: React.FC<BacktestSandboxProps> = ({
                             <th className="p-2 font-semibold">Asset</th>
                             <th className="p-2 font-semibold">Entry / Exit</th>
                             <th className="p-2 font-semibold">SL / Target</th>
-                            <th className="p-2 font-semibold text-right">PnL</th>
+                            <th className="p-2 font-semibold text-right">Gross PnL</th>
+                            <th className="p-2 font-semibold text-right font-black">Net PnL</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -304,6 +305,11 @@ export const BacktestSandbox: React.FC<BacktestSandboxProps> = ({
                             
                             return trades.map((trade, idx) => {
                               const isWin = trade.outcome === "WIN";
+                              const grossPnL = trade.gross_pnl !== undefined ? trade.gross_pnl : trade.pnl;
+                              const netPnL = trade.net_pnl !== undefined ? trade.net_pnl : trade.pnl;
+                              const netColor = netPnL === 0 ? "text-slate-500" : netPnL > 0 ? "text-emerald-400 font-bold" : "text-rose-400 font-bold";
+                              const grossColor = grossPnL === 0 ? "text-slate-500" : grossPnL > 0 ? "text-emerald-500/80" : "text-rose-500/80";
+
                               return (
                                 <tr
                                   key={`${symbol}-${idx}`}
@@ -322,10 +328,11 @@ export const BacktestSandbox: React.FC<BacktestSandboxProps> = ({
                                     <span className="block text-[9px] text-rose-500/80 tabular-nums">SL: {formatCurrency(trade.stop_loss)}</span>
                                     <span className="block text-[9px] text-emerald-500/80 tabular-nums">TGT: {formatCurrency(trade.target)}</span>
                                   </td>
-                                  <td className={`p-2 text-right font-semibold tabular-nums whitespace-nowrap ${
-                                    isWin ? "text-emerald-400" : "text-rose-400"
-                                  }`}>
-                                    <span className="block">{isWin ? "+" : ""}{formatCurrency(trade.pnl)}</span>
+                                  <td className={`p-2 text-right tabular-nums whitespace-nowrap ${grossColor}`}>
+                                    <span>{grossPnL > 0 ? "+" : ""}{formatCurrency(grossPnL)}</span>
+                                  </td>
+                                  <td className={`p-2 text-right tabular-nums whitespace-nowrap ${netColor}`}>
+                                    <span className="block">{netPnL > 0 ? "+" : ""}{formatCurrency(netPnL)}</span>
                                     <span className={`inline-block text-[8px] px-1 py-0.2 rounded font-black mt-0.5 ${
                                       isWin ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
                                     }`}>

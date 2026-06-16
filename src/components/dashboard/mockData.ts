@@ -17,7 +17,30 @@ export const MOCK_SCANNER_RESULTS: Record<string, Omit<LiveScannerResult, "symbo
       "RSI at 62.5 indicates strong upward momentum.",
       "Price crossed above session VWAP with expanding volume.",
       "Volume is 2.1x relative to 20-day average."
-    ]
+    ],
+    analysis_state: "SCANNED",
+    signal_state: "BUY_CANDIDATE",
+    trade_state: "OPEN",
+    entry_slippage: 49.98,
+    entry_brokerage: 20.00,
+    entry_taxes: 99.96,
+    total_entry_costs: 169.94,
+    ai_model_used: "Gemini-Pro-Overlay",
+    base_score: 0.80,
+    ai_score_adjustment: 0.08,
+    ai_input_payload: {
+      symbol: "RELIANCE.NS",
+      technical_score: 0.80,
+      rsi: 62.5,
+      volume_multiplier: 2.1,
+      vwap_cross: "above"
+    },
+    ai_output_payload: {
+      final_score: 0.88,
+      adjustment: +0.08,
+      consensus_confidence: 0.85,
+      remarks: "Volume breakout confirmed. High institutional flow detected."
+    }
   },
   "TCS.NS": {
     action: "SELL",
@@ -35,7 +58,29 @@ export const MOCK_SCANNER_RESULTS: Record<string, Omit<LiveScannerResult, "symbo
       "Double top pattern detected at 3880 resistance.",
       "Relative volume is 1.8x, signaling active distribution.",
       "RSI is in overbought zone (74.2)."
-    ]
+    ],
+    analysis_state: "SCANNED",
+    signal_state: "SELL_CANDIDATE",
+    trade_state: "NOT_CREATED",
+    entry_slippage: 62.40,
+    entry_brokerage: 20.00,
+    entry_taxes: 122.50,
+    total_entry_costs: 204.90,
+    ai_model_used: "Gemini-Pro-Overlay",
+    base_score: 0.70,
+    ai_score_adjustment: 0.04,
+    ai_input_payload: {
+      symbol: "TCS.NS",
+      technical_score: 0.70,
+      rsi: 74.2,
+      distribution_pattern: "double_top"
+    },
+    ai_output_payload: {
+      final_score: 0.74,
+      adjustment: +0.04,
+      consensus_confidence: 0.70,
+      remarks: "Overbought reversion probability high."
+    }
   },
   "INFY.NS": {
     action: "HOLD",
@@ -53,7 +98,28 @@ export const MOCK_SCANNER_RESULTS: Record<string, Omit<LiveScannerResult, "symbo
       "Trading inside a tight sideways range (1470-1490).",
       "Relative volume is extremely thin (0.6x average).",
       "RSI is neutral at 50.5."
-    ]
+    ],
+    analysis_state: "READY_FOR_SCORING",
+    signal_state: "SKIP",
+    trade_state: "NOT_CREATED",
+    entry_slippage: 0,
+    entry_brokerage: 0,
+    entry_taxes: 0,
+    total_entry_costs: 0,
+    ai_model_used: "Gemini-Pro-Overlay",
+    base_score: 0.55,
+    ai_score_adjustment: -0.03,
+    ai_input_payload: {
+      symbol: "INFY.NS",
+      technical_score: 0.55,
+      volatility: "very_low"
+    },
+    ai_output_payload: {
+      final_score: 0.52,
+      adjustment: -0.03,
+      consensus_confidence: 0.55,
+      remarks: "Rangebound constraints limit directional trades."
+    }
   },
   "HDFCBANK.NS": {
     action: "BUY",
@@ -71,7 +137,28 @@ export const MOCK_SCANNER_RESULTS: Record<string, Omit<LiveScannerResult, "symbo
       "Consolidation breakout on high volume.",
       "Favorable sector rotation into banking.",
       "Relative volume is 2.4x average, showing heavy buying."
-    ]
+    ],
+    analysis_state: "SCANNED",
+    signal_state: "BLOCKED_BY_RISK",
+    trade_state: "NOT_CREATED",
+    entry_slippage: 35.80,
+    entry_brokerage: 20.00,
+    entry_taxes: 68.20,
+    total_entry_costs: 124.00,
+    ai_model_used: "Gemini-Pro-Overlay",
+    base_score: 0.88,
+    ai_score_adjustment: 0.04,
+    ai_input_payload: {
+      symbol: "HDFCBANK.NS",
+      technical_score: 0.88,
+      breakout: true
+    },
+    ai_output_payload: {
+      final_score: 0.92,
+      adjustment: +0.04,
+      consensus_confidence: 0.90,
+      remarks: "High-conviction breakout pattern. Capital risk limits blocked execution."
+    }
   },
   "ICICIBANK.NS": {
     action: "BUY",
@@ -88,7 +175,28 @@ export const MOCK_SCANNER_RESULTS: Record<string, Omit<LiveScannerResult, "symbo
     reasons: [
       "9-EMA crossed above 21-EMA on 15-minute chart.",
       "RSI rising from 45 to 58, indicating expanding momentum."
-    ]
+    ],
+    analysis_state: "SCANNED",
+    signal_state: "BUY_CANDIDATE",
+    trade_state: "OPEN",
+    entry_slippage: 28.50,
+    entry_brokerage: 20.00,
+    entry_taxes: 48.00,
+    total_entry_costs: 96.50,
+    ai_model_used: "Gemini-Pro-Overlay",
+    base_score: 0.65,
+    ai_score_adjustment: 0.03,
+    ai_input_payload: {
+      symbol: "ICICIBANK.NS",
+      technical_score: 0.65,
+      crossover: "bullish"
+    },
+    ai_output_payload: {
+      final_score: 0.68,
+      adjustment: +0.03,
+      consensus_confidence: 0.72,
+      remarks: "EMA alignment suggests trend establishment."
+    }
   },
   "SBIN.NS": {
     action: "SELL",
@@ -105,7 +213,28 @@ export const MOCK_SCANNER_RESULTS: Record<string, Omit<LiveScannerResult, "symbo
     reasons: [
       "Price closed below session VWAP on volume spike.",
       "Z-score is -1.8, indicating strong downward divergence."
-    ]
+    ],
+    analysis_state: "SCANNED",
+    signal_state: "SELL_CANDIDATE",
+    trade_state: "OPEN",
+    entry_slippage: 24.80,
+    entry_brokerage: 20.00,
+    entry_taxes: 38.60,
+    total_entry_costs: 83.40,
+    ai_model_used: "Gemini-Pro-Overlay",
+    base_score: 0.79,
+    ai_score_adjustment: 0.02,
+    ai_input_payload: {
+      symbol: "SBIN.NS",
+      technical_score: 0.79,
+      z_score: -1.8
+    },
+    ai_output_payload: {
+      final_score: 0.81,
+      adjustment: +0.02,
+      consensus_confidence: 0.78,
+      remarks: "Bearish VWAP breakdown confirmed on high volume."
+    }
   },
   "WIPRO.NS": {
     action: "SKIP",
@@ -122,7 +251,28 @@ export const MOCK_SCANNER_RESULTS: Record<string, Omit<LiveScannerResult, "symbo
     reasons: [
       "Relative volume is very low (0.4x average).",
       "Spread is too wide to support standard execution."
-    ]
+    ],
+    analysis_state: "FILTERED_OUT",
+    signal_state: "SKIP",
+    trade_state: "NOT_CREATED",
+    entry_slippage: 0,
+    entry_brokerage: 0,
+    entry_taxes: 0,
+    total_entry_costs: 0,
+    ai_model_used: "Gemini-Pro-Overlay",
+    base_score: 0.40,
+    ai_score_adjustment: -0.05,
+    ai_input_payload: {
+      symbol: "WIPRO.NS",
+      volume_ratio: 0.4,
+      spread: "wide"
+    },
+    ai_output_payload: {
+      final_score: 0.35,
+      adjustment: -0.05,
+      consensus_confidence: 0.40,
+      remarks: "Bypassed due to insufficient volume and spread bounds."
+    }
   },
   "BHARTIARTL.NS": {
     action: "BUY",
@@ -139,7 +289,28 @@ export const MOCK_SCANNER_RESULTS: Record<string, Omit<LiveScannerResult, "symbo
     reasons: [
       "Pouncing off dynamic support at the 20-EMA.",
       "Institutional order flow is positive on telecommunications."
-    ]
+    ],
+    analysis_state: "SCANNED",
+    signal_state: "BUY_CANDIDATE",
+    trade_state: "OPEN",
+    entry_slippage: 32.10,
+    entry_brokerage: 20.00,
+    entry_taxes: 58.40,
+    total_entry_costs: 110.50,
+    ai_model_used: "Gemini-Pro-Overlay",
+    base_score: 0.82,
+    ai_score_adjustment: 0.03,
+    ai_input_payload: {
+      symbol: "BHARTIARTL.NS",
+      technical_score: 0.82,
+      support_level: "20-EMA"
+    },
+    ai_output_payload: {
+      final_score: 0.85,
+      adjustment: +0.03,
+      consensus_confidence: 0.80,
+      remarks: "Support bounce confirmed. Positive sector catalyst."
+    }
   },
   "ITC.NS": {
     action: "HOLD",
@@ -156,7 +327,27 @@ export const MOCK_SCANNER_RESULTS: Record<string, Omit<LiveScannerResult, "symbo
     reasons: [
       "Low volatility consolidation ahead of FMCG sector indexing.",
       "Z-score close to 0."
-    ]
+    ],
+    analysis_state: "READY_FOR_SCORING",
+    signal_state: "SKIP",
+    trade_state: "NOT_CREATED",
+    entry_slippage: 0,
+    entry_brokerage: 0,
+    entry_taxes: 0,
+    total_entry_costs: 0,
+    ai_model_used: "Gemini-Pro-Overlay",
+    base_score: 0.50,
+    ai_score_adjustment: -0.02,
+    ai_input_payload: {
+      symbol: "ITC.NS",
+      z_score: -0.05
+    },
+    ai_output_payload: {
+      final_score: 0.48,
+      adjustment: -0.02,
+      consensus_confidence: 0.50,
+      remarks: "Volatility remains low. Consolidation limits opportunities."
+    }
   }
 };
 
@@ -177,7 +368,27 @@ export const MOCK_STOCK_DETAILS: Record<string, StockDetailsResponse> = {
       "RSI at 62.5 indicates strong upward momentum.",
       "Price crossed above session VWAP with expanding volume.",
       "Volume is 2.1x relative to 20-day average."
-    ]
+    ],
+    trend_strength: 78,
+    execution_spread: 1.35,
+    opening_range_status: "BREAKOUT",
+    opening_gap_pct: 0.45,
+    ai_model_used: "Gemini-Pro-Overlay",
+    base_score: 0.80,
+    ai_score_adjustment: 0.08,
+    ai_input_payload: {
+      symbol: "RELIANCE.NS",
+      technical_score: 0.80,
+      rsi: 62.5,
+      volume_multiplier: 2.1,
+      vwap_cross: "above"
+    },
+    ai_output_payload: {
+      final_score: 0.88,
+      adjustment: +0.08,
+      consensus_confidence: 0.85,
+      remarks: "Volume breakout confirmed. High institutional flow detected."
+    }
   },
   "TCS.NS": {
     symbol: "TCS.NS",
@@ -195,7 +406,26 @@ export const MOCK_STOCK_DETAILS: Record<string, StockDetailsResponse> = {
       "Double top pattern detected at 3880 resistance.",
       "Relative volume is 1.8x, signaling active distribution.",
       "RSI is in overbought zone (74.2)."
-    ]
+    ],
+    trend_strength: 65,
+    execution_spread: 2.15,
+    opening_range_status: "BREAKOUT",
+    opening_gap_pct: -0.15,
+    ai_model_used: "Gemini-Pro-Overlay",
+    base_score: 0.70,
+    ai_score_adjustment: 0.04,
+    ai_input_payload: {
+      symbol: "TCS.NS",
+      technical_score: 0.70,
+      rsi: 74.2,
+      distribution_pattern: "double_top"
+    },
+    ai_output_payload: {
+      final_score: 0.74,
+      adjustment: +0.04,
+      consensus_confidence: 0.70,
+      remarks: "Overbought reversion probability high."
+    }
   },
   "INFY.NS": {
     symbol: "INFY.NS",
@@ -213,7 +443,25 @@ export const MOCK_STOCK_DETAILS: Record<string, StockDetailsResponse> = {
       "Trading inside a tight sideways range (1470-1490).",
       "Relative volume is extremely thin (0.6x average).",
       "RSI is neutral at 50.5."
-    ]
+    ],
+    trend_strength: 12,
+    execution_spread: 0.85,
+    opening_range_status: "INSIDE",
+    opening_gap_pct: 0.05,
+    ai_model_used: "Gemini-Pro-Overlay",
+    base_score: 0.55,
+    ai_score_adjustment: -0.03,
+    ai_input_payload: {
+      symbol: "INFY.NS",
+      technical_score: 0.55,
+      volatility: "very_low"
+    },
+    ai_output_payload: {
+      final_score: 0.52,
+      adjustment: -0.03,
+      consensus_confidence: 0.55,
+      remarks: "Rangebound constraints limit directional trades."
+    }
   },
   "HDFCBANK.NS": {
     symbol: "HDFCBANK.NS",
@@ -231,7 +479,25 @@ export const MOCK_STOCK_DETAILS: Record<string, StockDetailsResponse> = {
       "Consolidation breakout on high volume.",
       "Favorable sector rotation into banking.",
       "Relative volume is 2.4x average, showing heavy buying."
-    ]
+    ],
+    trend_strength: 84,
+    execution_spread: 0.95,
+    opening_range_status: "BREAKOUT",
+    opening_gap_pct: 0.80,
+    ai_model_used: "Gemini-Pro-Overlay",
+    base_score: 0.88,
+    ai_score_adjustment: 0.04,
+    ai_input_payload: {
+      symbol: "HDFCBANK.NS",
+      technical_score: 0.88,
+      breakout: true
+    },
+    ai_output_payload: {
+      final_score: 0.92,
+      adjustment: +0.04,
+      consensus_confidence: 0.90,
+      remarks: "High-conviction breakout pattern. Capital risk limits blocked execution."
+    }
   },
   "ICICIBANK.NS": {
     symbol: "ICICIBANK.NS",
@@ -248,7 +514,25 @@ export const MOCK_STOCK_DETAILS: Record<string, StockDetailsResponse> = {
     reasons: [
       "9-EMA crossed above 21-EMA on 15-minute chart.",
       "RSI rising from 45 to 58, indicating expanding momentum."
-    ]
+    ],
+    trend_strength: 48,
+    execution_spread: 0.70,
+    opening_range_status: "INSIDE",
+    opening_gap_pct: -0.10,
+    ai_model_used: "Gemini-Pro-Overlay",
+    base_score: 0.65,
+    ai_score_adjustment: 0.03,
+    ai_input_payload: {
+      symbol: "ICICIBANK.NS",
+      technical_score: 0.65,
+      crossover: "bullish"
+    },
+    ai_output_payload: {
+      final_score: 0.68,
+      adjustment: +0.03,
+      consensus_confidence: 0.72,
+      remarks: "EMA alignment suggests trend establishment."
+    }
   },
   "SBIN.NS": {
     symbol: "SBIN.NS",
@@ -265,7 +549,25 @@ export const MOCK_STOCK_DETAILS: Record<string, StockDetailsResponse> = {
     reasons: [
       "Price closed below session VWAP on volume spike.",
       "Z-score is -1.8, indicating strong downward divergence."
-    ]
+    ],
+    trend_strength: 72,
+    execution_spread: 0.55,
+    opening_range_status: "BREAKOUT",
+    opening_gap_pct: -0.35,
+    ai_model_used: "Gemini-Pro-Overlay",
+    base_score: 0.79,
+    ai_score_adjustment: 0.02,
+    ai_input_payload: {
+      symbol: "SBIN.NS",
+      technical_score: 0.79,
+      z_score: -1.8
+    },
+    ai_output_payload: {
+      final_score: 0.81,
+      adjustment: +0.02,
+      consensus_confidence: 0.78,
+      remarks: "Bearish VWAP breakdown confirmed on high volume."
+    }
   },
   "WIPRO.NS": {
     symbol: "WIPRO.NS",
@@ -282,7 +584,25 @@ export const MOCK_STOCK_DETAILS: Record<string, StockDetailsResponse> = {
     reasons: [
       "Relative volume is very low (0.4x average).",
       "Spread is too wide to support standard execution."
-    ]
+    ],
+    trend_strength: 24,
+    execution_spread: 1.10,
+    opening_range_status: "INSIDE",
+    opening_gap_pct: -0.05,
+    ai_model_used: "Gemini-Pro-Overlay",
+    base_score: 0.40,
+    ai_score_adjustment: -0.05,
+    ai_input_payload: {
+      symbol: "WIPRO.NS",
+      volume_ratio: 0.4,
+      spread: "wide"
+    },
+    ai_output_payload: {
+      final_score: 0.35,
+      adjustment: -0.05,
+      consensus_confidence: 0.40,
+      remarks: "Bypassed due to insufficient volume and spread bounds."
+    }
   },
   "BHARTIARTL.NS": {
     symbol: "BHARTIARTL.NS",
@@ -299,7 +619,25 @@ export const MOCK_STOCK_DETAILS: Record<string, StockDetailsResponse> = {
     reasons: [
       "Pouncing off dynamic support at the 20-EMA.",
       "Institutional order flow is positive on telecommunications."
-    ]
+    ],
+    trend_strength: 61,
+    execution_spread: 0.90,
+    opening_range_status: "INSIDE",
+    opening_gap_pct: 0.20,
+    ai_model_used: "Gemini-Pro-Overlay",
+    base_score: 0.82,
+    ai_score_adjustment: 0.03,
+    ai_input_payload: {
+      symbol: "BHARTIARTL.NS",
+      technical_score: 0.82,
+      support_level: "20-EMA"
+    },
+    ai_output_payload: {
+      final_score: 0.85,
+      adjustment: +0.03,
+      consensus_confidence: 0.80,
+      remarks: "Support bounce confirmed. Positive sector catalyst."
+    }
   },
   "ITC.NS": {
     symbol: "ITC.NS",
@@ -316,7 +654,24 @@ export const MOCK_STOCK_DETAILS: Record<string, StockDetailsResponse> = {
     reasons: [
       "Low volatility consolidation ahead of FMCG sector indexing.",
       "Z-score close to 0."
-    ]
+    ],
+    trend_strength: 8,
+    execution_spread: 0.30,
+    opening_range_status: "INSIDE",
+    opening_gap_pct: 0.00,
+    ai_model_used: "Gemini-Pro-Overlay",
+    base_score: 0.50,
+    ai_score_adjustment: -0.02,
+    ai_input_payload: {
+      symbol: "ITC.NS",
+      z_score: -0.05
+    },
+    ai_output_payload: {
+      final_score: 0.48,
+      adjustment: -0.02,
+      consensus_confidence: 0.50,
+      remarks: "Volatility remains low. Consolidation limits opportunities."
+    }
   }
 };
 
@@ -334,7 +689,16 @@ export const generateMockStockDetails = (symbol: string): StockDetailsResponse =
     rsi: 50.0,
     vwap: 1000.0,
     z_score: 0.0,
-    reasons: ["Neutral indicator readings.", "Average relative volume and liquidity."]
+    reasons: ["Neutral indicator readings.", "Average relative volume and liquidity."],
+    trend_strength: 20,
+    execution_spread: 0.50,
+    opening_range_status: "INSIDE",
+    opening_gap_pct: 0.0,
+    ai_model_used: "Gemini-Pro-Overlay",
+    base_score: 0.50,
+    ai_score_adjustment: 0.0,
+    ai_input_payload: { symbol },
+    ai_output_payload: { remarks: "Demo fallback placeholder." }
   };
 };
 
@@ -359,7 +723,9 @@ export const MOCK_TRADES: SimulatedTrade[] = [
     exit_time: "2026-06-12 14:30",
     exit_price: 2485.00,
     pnl: 2000.00,
-    outcome: "WIN"
+    outcome: "WIN",
+    gross_pnl: 2169.94,
+    net_pnl: 2000.00
   },
   {
     symbol: "RELIANCE.NS",
@@ -370,7 +736,9 @@ export const MOCK_TRADES: SimulatedTrade[] = [
     exit_time: "2026-06-13 11:15",
     exit_price: 2445.00,
     pnl: -600.00,
-    outcome: "LOSS"
+    outcome: "LOSS",
+    gross_pnl: -430.06,
+    net_pnl: -600.00
   },
   {
     symbol: "TCS.NS",
@@ -381,7 +749,9 @@ export const MOCK_TRADES: SimulatedTrade[] = [
     exit_time: "2026-06-14 15:10",
     exit_price: 3790.00,
     pnl: 2400.00,
-    outcome: "WIN"
+    outcome: "WIN",
+    gross_pnl: 2604.90,
+    net_pnl: 2400.00
   }
 ];
 

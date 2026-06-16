@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { X, ShieldAlert, Sparkles } from "lucide-react";
+import { X, ShieldAlert, Sparkles, SlidersHorizontal } from "lucide-react";
 import { StockDetailsResponse, formatCurrency } from "./types";
 
 interface AnalysisDrawerProps {
@@ -193,6 +193,39 @@ export const AnalysisDrawer: React.FC<AnalysisDrawerProps> = ({
                   </div>
                 </div>
 
+                {/* Trend Strength (ADX) Gauge */}
+                {stockDetails.trend_strength !== undefined && (
+                  <div className="bg-slate-950/20 border border-slate-850 p-4 rounded-2xl flex flex-col justify-between sm:col-span-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Trend Strength (ADX)</span>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-2xl font-black text-slate-100 tabular-nums">{stockDetails.trend_strength}</span>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase ${
+                        stockDetails.trend_strength >= 50
+                          ? "bg-cyan-500/10 text-cyan-400"
+                          : stockDetails.trend_strength >= 25
+                          ? "bg-indigo-500/10 text-indigo-400"
+                          : "bg-slate-855 text-slate-400"
+                      }`}>
+                        {stockDetails.trend_strength >= 50 ? "Strong Trend" : stockDetails.trend_strength >= 25 ? "Moderate Trend" : "Weak Trend"}
+                      </span>
+                    </div>
+                    
+                    {/* ADX Progress Slider */}
+                    <div className="w-full h-2 bg-slate-800 rounded-full relative overflow-hidden mt-3 mb-2">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 transition-all duration-500"
+                        style={{ width: `${stockDetails.trend_strength}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[8px] text-slate-600 font-bold uppercase mt-1">
+                      <span>0 (Weak)</span>
+                      <span>25 (Trend)</span>
+                      <span>50 (Strong)</span>
+                      <span>100 (Extreme)</span>
+                    </div>
+                  </div>
+                )}
+
               </div>
 
               {/* Detailed Technical Metrics Grid */}
@@ -205,6 +238,12 @@ export const AnalysisDrawer: React.FC<AnalysisDrawerProps> = ({
                       stockDetails.z_score > 1.5 ? "text-emerald-400" : stockDetails.z_score < -1.5 ? "text-rose-400" : "text-slate-300"
                     }`}>
                       {stockDetails.z_score > 0 ? "+" : ""}{stockDetails.z_score.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-slate-900 pb-2">
+                    <span className="text-slate-500 font-medium">Volume:</span>
+                    <span className="font-bold text-slate-300 tabular-nums">
+                      {(stockDetails.volume / 100000).toFixed(1)}L
                     </span>
                   </div>
                   <div className="flex justify-between items-center border-b border-slate-900 pb-2">
@@ -223,6 +262,34 @@ export const AnalysisDrawer: React.FC<AnalysisDrawerProps> = ({
                     <span className="text-slate-500 font-medium">Liquidity:</span>
                     <span className="font-bold text-slate-300 tabular-nums">
                       {(stockDetails.liquidity_score * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-slate-900 pb-2">
+                    <span className="text-slate-500 font-medium">Bid-Ask Spread:</span>
+                    <span className="font-bold text-slate-300 tabular-nums">
+                      {stockDetails.execution_spread !== undefined ? formatCurrency(stockDetails.execution_spread) : "N/A"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-slate-900 pb-2">
+                    <span className="text-slate-500 font-medium">Opening Range:</span>
+                    <span className={`font-black uppercase text-[10px] px-1.5 py-0.2 rounded ${
+                      stockDetails.opening_range_status === "BREAKOUT"
+                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                        : "bg-slate-800 text-slate-400 border border-slate-700/30"
+                    }`}>
+                      {stockDetails.opening_range_status || "INSIDE"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-slate-900 pb-2">
+                    <span className="text-slate-500 font-medium">Opening Gap:</span>
+                    <span className={`font-bold tabular-nums ${
+                      (stockDetails.opening_gap_pct || 0) > 0 
+                        ? "text-emerald-400" 
+                        : (stockDetails.opening_gap_pct || 0) < 0 
+                        ? "text-rose-400" 
+                        : "text-slate-300"
+                    }`}>
+                      {stockDetails.opening_gap_pct !== undefined ? `${stockDetails.opening_gap_pct > 0 ? "+" : ""}${stockDetails.opening_gap_pct.toFixed(2)}%` : "0.00%"}
                     </span>
                   </div>
                 </div>
@@ -249,6 +316,9 @@ export const AnalysisDrawer: React.FC<AnalysisDrawerProps> = ({
                 </ul>
               </div>
 
+              {/* AI Overlay Debug Panel */}
+              <AiDebugPanel stockDetails={stockDetails} />
+
             </div>
           )}
 
@@ -265,6 +335,70 @@ export const AnalysisDrawer: React.FC<AnalysisDrawerProps> = ({
         </div>
 
       </motion.div>
+    </div>
+  );
+};
+
+const AiDebugPanel: React.FC<{ stockDetails: StockDetailsResponse }> = ({ stockDetails }) => {
+  const [aiDebugOpen, setAiDebugOpen] = React.useState(false);
+
+  if (!stockDetails.ai_model_used && !stockDetails.ai_input_payload && !stockDetails.ai_output_payload) {
+    return null;
+  }
+
+  return (
+    <div className="bg-slate-950/20 border border-slate-850 p-4 rounded-2xl">
+      <button
+        type="button"
+        onClick={() => setAiDebugOpen(!aiDebugOpen)}
+        className="w-full flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider hover:text-cyan-400 transition-colors cursor-pointer animate-none"
+      >
+        <span className="flex items-center gap-1.5">
+          <SlidersHorizontal size={13} className="text-purple-400" />
+          AI Analysis Debug Payload
+        </span>
+        <span>{aiDebugOpen ? "Hide" : "Show"}</span>
+      </button>
+
+      {aiDebugOpen && (
+        <div className="mt-4 space-y-4 border-t border-slate-900 pt-4 text-xs">
+          {stockDetails.ai_model_used && (
+            <div className="flex justify-between items-center">
+              <span className="text-slate-500 font-medium">Model Used:</span>
+              <span className="font-mono text-cyan-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-850 text-[10px]">
+                {stockDetails.ai_model_used}
+              </span>
+            </div>
+          )}
+
+          {stockDetails.base_score !== undefined && (
+            <div className="flex justify-between items-center">
+              <span className="text-slate-500 font-medium">Score Modification:</span>
+              <span className="font-bold text-slate-300">
+                Base: {(stockDetails.base_score).toFixed(2)} | AI Mod: {stockDetails.ai_score_adjustment !== undefined ? (stockDetails.ai_score_adjustment >= 0 ? `+${stockDetails.ai_score_adjustment.toFixed(2)}` : stockDetails.ai_score_adjustment.toFixed(2)) : "0.00"} | Final: {((stockDetails.base_score || 0) + (stockDetails.ai_score_adjustment || 0)).toFixed(2)}
+              </span>
+            </div>
+          )}
+
+          {stockDetails.ai_input_payload && (
+            <div className="space-y-1.5">
+              <span className="text-slate-500 font-medium block text-left">AI Input Payload:</span>
+              <pre className="bg-slate-950 p-3 rounded-lg overflow-x-auto text-[10px] text-slate-400 border border-slate-850 max-h-48 font-mono select-all text-left">
+                {JSON.stringify(stockDetails.ai_input_payload, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          {stockDetails.ai_output_payload && (
+            <div className="space-y-1.5">
+              <span className="text-slate-500 font-medium block text-left">AI Output Payload:</span>
+              <pre className="bg-slate-950 p-3 rounded-lg overflow-x-auto text-[10px] text-cyan-400 border border-slate-850 max-h-48 font-mono select-all text-left">
+                {JSON.stringify(stockDetails.ai_output_payload, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

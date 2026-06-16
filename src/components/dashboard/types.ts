@@ -12,6 +12,21 @@ export interface LiveScannerResult {
   position_size: number;
   risk_per_trade: number;
   reasons: string[];
+  // New outcome states
+  analysis_state?: "SCANNED" | "READY_FOR_SCORING" | "FILTERED_OUT" | "FEATURE_ERROR" | string;
+  signal_state?: "BUY_CANDIDATE" | "SELL_CANDIDATE" | "BLOCKED_BY_RISK" | "SKIP" | string;
+  trade_state?: "OPEN" | "CLOSED" | "NOT_CREATED" | "CANCELLED" | string;
+  // Cost friction fields
+  entry_slippage?: number;
+  entry_brokerage?: number;
+  entry_taxes?: number;
+  total_entry_costs?: number;
+  // AI Overlay debug fields
+  ai_model_used?: string;
+  base_score?: number;
+  ai_score_adjustment?: number;
+  ai_input_payload?: any;
+  ai_output_payload?: any;
 }
 
 export interface LiveScannerResponse {
@@ -34,6 +49,17 @@ export interface StockDetailsResponse {
   vwap: number;
   z_score: number;
   reasons: string[];
+  // Extended technical indicators
+  trend_strength?: number; // ADX rating 0-100
+  execution_spread?: number; // Bid-ask spread in INR
+  opening_range_status?: "INSIDE" | "BREAKOUT" | string;
+  opening_gap_pct?: number; // Gap %
+  // AI Overlay debug fields
+  ai_model_used?: string;
+  base_score?: number;
+  ai_score_adjustment?: number;
+  ai_input_payload?: any;
+  ai_output_payload?: any;
 }
 
 export interface RiskState {
@@ -57,6 +83,8 @@ export interface SimulatedTrade {
   exit_price: number;
   pnl: number;
   outcome: "WIN" | "LOSS";
+  gross_pnl?: number;
+  net_pnl?: number;
 }
 
 export interface BacktestResult {

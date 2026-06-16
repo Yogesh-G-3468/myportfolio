@@ -1,5 +1,5 @@
 import React from "react";
-import { Loader2, SlidersHorizontal, ArrowUpRight, Eye, Activity } from "lucide-react";
+import { Loader2, SlidersHorizontal, ArrowUpRight, Eye, Activity, Info } from "lucide-react";
 import { LiveScannerResponse, LiveScannerResult, formatCurrency } from "./types";
 
 interface WatchlistScannerProps {
@@ -49,7 +49,7 @@ export const WatchlistScanner: React.FC<WatchlistScannerProps> = ({
               <thead>
                 <tr className="bg-slate-950/60 text-slate-500 uppercase tracking-wider border-b border-slate-850">
                   <th className="p-3 font-bold">Symbol</th>
-                  <th className="p-3 font-bold text-center">Action</th>
+                  <th className="p-3 font-bold text-center">Action State</th>
                   <th className="p-3 font-bold">Strategy</th>
                   <th className="p-3 font-bold text-center">Score / Conf</th>
                   <th className="p-3 font-bold text-right">Close Price</th>
@@ -61,12 +61,27 @@ export const WatchlistScanner: React.FC<WatchlistScannerProps> = ({
               </thead>
               <tbody>
                 {results.map((row) => {
+                  // Advanced outcome state badge mapping
+                  const signalState = row.signal_state || row.action;
                   const actionColors = {
+                    BUY_CANDIDATE: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25",
                     BUY: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25",
+                    SELL_CANDIDATE: "text-rose-400 bg-rose-500/10 border-rose-500/25",
                     SELL: "text-rose-400 bg-rose-500/10 border-rose-500/25",
+                    BLOCKED_BY_RISK: "text-amber-400 bg-amber-500/10 border-amber-550/30",
                     HOLD: "text-slate-400 bg-slate-800/50 border-slate-700/40",
                     SKIP: "text-slate-500 bg-slate-950/30 border-slate-900"
-                  }[row.action as "BUY" | "SELL" | "HOLD" | "SKIP"] || "text-slate-400 bg-slate-800/50 border-slate-700/40";
+                  }[signalState as string] || "text-slate-400 bg-slate-800/50 border-slate-700/40";
+
+                  const actionLabel = {
+                    BUY_CANDIDATE: "BUY CANDIDATE",
+                    BUY: "BUY",
+                    SELL_CANDIDATE: "SELL CANDIDATE",
+                    SELL: "SELL",
+                    BLOCKED_BY_RISK: "BLOCKED BY RISK",
+                    HOLD: "HOLD",
+                    SKIP: "SKIP"
+                  }[signalState as string] || signalState;
 
                   const isActive = row.action === "BUY" || row.action === "SELL";
 
@@ -100,9 +115,34 @@ export const WatchlistScanner: React.FC<WatchlistScannerProps> = ({
                       </td>
 
                       <td className="p-3 text-center">
-                        <span className={`inline-block px-2.5 py-0.5 rounded font-black text-[10px] uppercase border ${actionColors}`}>
-                          {row.action}
-                        </span>
+                        <div className="flex flex-col items-center justify-center">
+                          <span className={`inline-block px-2 py-0.5 rounded font-black text-[10px] uppercase border ${actionColors}`}>
+                            {actionLabel}
+                          </span>
+                          
+                          {/* analysis_state badge */}
+                          {row.analysis_state === "FILTERED_OUT" && (
+                            <span className="block mt-1 text-[8px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1 py-0.2 rounded uppercase tracking-wider font-bold">
+                              Low Liquidity
+                            </span>
+                          )}
+                          {row.analysis_state === "FEATURE_ERROR" && (
+                            <span className="block mt-1 text-[8px] text-amber-500 bg-amber-500/10 border border-amber-500/20 px-1 py-0.2 rounded uppercase tracking-wider font-bold">
+                              Data Error
+                            </span>
+                          )}
+
+                          {/* trade_state badge */}
+                          {row.trade_state && row.trade_state !== "NOT_CREATED" && (
+                            <span className={`block mt-1 text-[8px] px-1 py-0.2 rounded uppercase tracking-wider font-bold ${
+                              row.trade_state === "OPEN" 
+                                ? "text-cyan-400 bg-cyan-500/10 border border-cyan-500/20" 
+                                : "text-slate-500 bg-slate-950/30 border border-slate-900"
+                            }`}>
+                              {row.trade_state}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       <td className="p-3 font-medium text-slate-300">
@@ -139,9 +179,35 @@ export const WatchlistScanner: React.FC<WatchlistScannerProps> = ({
 
                       <td className="p-3 text-right">
                         {isActive && row.position_size ? (
-                          <div className="flex flex-col text-right text-[10px] leading-tight">
-                            <span className="text-slate-200 font-bold">{row.position_size} Shares</span>
+                          <div className="flex flex-col items-end text-right text-[10px] leading-tight relative group/tooltip">
+                            <div className="flex items-center gap-1">
+                              <span className="text-slate-200 font-bold">{row.position_size} Shares</span>
+                              <Info size={11} className="text-slate-500 hover:text-cyan-400 transition-colors cursor-help" />
+                            </div>
                             <span className="text-slate-400">Cash: {formatCurrency(row.risk_per_trade)}</span>
+                            
+                            {/* Hover tooltip for friction */}
+                            {row.total_entry_costs !== undefined && (
+                              <div className="absolute right-0 bottom-full mb-1.5 hidden group-hover/tooltip:flex flex-col bg-slate-950 border border-slate-800 rounded-xl p-3 shadow-2xl text-[10px] text-left w-52 z-30 space-y-1 backdrop-blur-md">
+                                <span className="font-bold text-slate-300 border-b border-slate-850 pb-1 mb-1 block">Entry Cost Friction</span>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500">Slippage:</span>
+                                  <span className="font-bold text-slate-300">{formatCurrency(row.entry_slippage || 0)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500">Brokerage:</span>
+                                  <span className="font-bold text-slate-300">{formatCurrency(row.entry_brokerage || 0)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500">Taxes:</span>
+                                  <span className="font-bold text-slate-300">{formatCurrency(row.entry_taxes || 0)}</span>
+                                </div>
+                                <div className="flex justify-between border-t border-slate-850 pt-1 mt-1 font-bold">
+                                  <span className="text-cyan-400">Total Fee:</span>
+                                  <span className="text-cyan-400">{formatCurrency(row.total_entry_costs || 0)}</span>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <span className="text-slate-600 font-medium">N/A</span>
