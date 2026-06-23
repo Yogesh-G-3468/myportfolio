@@ -36,6 +36,24 @@ export interface LiveScannerResponse {
   results: LiveScannerResult[];
 }
 
+export interface TechnicalIndicators {
+  rsi?: number;
+  rsi_14?: number;
+  relative_volume?: number;
+  z_score?: number;
+  volume?: number;
+  avg_volume?: number;
+  liquidity?: number;
+  liquidity_score?: number;
+  spread?: number;
+  bid_ask_spread?: number;
+  spread_slippage_proxy?: number;
+  opening_range?: string;
+  opening_range_status?: string;
+  opening_gap?: number;
+  gap_context?: number;
+}
+
 export interface StockDetailsResponse {
   symbol: string;
   close: number;
@@ -54,6 +72,19 @@ export interface StockDetailsResponse {
   execution_spread?: number; // Bid-ask spread in INR
   opening_range_status?: "INSIDE" | "BREAKOUT" | string;
   opening_gap_pct?: number; // Gap %
+  indicators?: TechnicalIndicators;
+  // Backend Signal details properties
+  strategy?: string;
+  signal_state?: "BUY_CANDIDATE" | "SELL_CANDIDATE" | "BLOCKED_BY_RISK" | "HOLD" | "SKIP" | string;
+  trade_state?: "NOT_CREATED" | "OPEN" | "CLOSED" | "CANCELLED" | string;
+  score?: number;
+  confidence?: number;
+  entry_zone?: [number, number];
+  stop_loss?: number;
+  target_1?: number;
+  target_2?: number | null;
+  position_size?: number;
+  risk_per_trade?: number;
   // AI Overlay debug fields
   ai_model_used?: string;
   base_score?: number;
@@ -65,6 +96,7 @@ export interface StockDetailsResponse {
 export interface RiskState {
   date: string;
   realized_pnl_today: number;
+  realized_pnl?: number;
   realized_pnl_week: number;
   realized_pnl_month: number;
   open_risk: number;
@@ -120,3 +152,50 @@ export const formatPnL = (val: number | undefined | null) => {
   if (val > 0) return `+${formatCurrency(val)}`;
   return formatCurrency(val);
 };
+
+export interface CacheItem {
+  action: "BUY" | "SELL" | "HOLD" | "SKIP" | string;
+  score: number;
+  reasons: string[];
+}
+
+export interface SystemStatus {
+  app_env: string;
+  current_time_ist: string;
+  is_market_day: boolean;
+  is_scan_window: boolean;
+  bypass_market_hours: boolean;
+  active_universe: string;
+  symbols: string[];
+  scheduler_running: boolean;
+  cache_keys: string[];
+  cache_summary: Record<string, CacheItem>;
+}
+
+export interface TriggerScanProcessedItem {
+  symbol: string;
+  action: "BUY" | "SELL" | "HOLD" | "SKIP" | string;
+  score: number;
+  trade_state: "OPEN" | "CLOSED" | "NOT_CREATED" | "CANCELLED" | string;
+}
+
+export interface TriggerScanResponse {
+  status: string;
+  processed_count: number;
+  processed: TriggerScanProcessedItem[];
+  errors: any[];
+  cache_keys: string[];
+}
+
+export interface NewsSentimentItem {
+  headlines: string[];
+  direction: "bullish" | "bearish" | "neutral" | string;
+  horizon: string;
+  impact: "low" | "medium" | "high" | string;
+  summary: string;
+  last_updated: string;
+}
+
+export type NewsSentimentResponse = Record<string, NewsSentimentItem>;
+
+

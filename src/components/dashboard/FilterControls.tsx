@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Rocket, Loader2 } from "lucide-react";
 
 interface FilterControlsProps {
   selectedUniverse: "NIFTY50" | "FO" | "CUSTOM";
@@ -10,6 +10,8 @@ interface FilterControlsProps {
   setDirectionFilter: (val: "All" | "BUY" | "SELL") => void;
   minConfidence: number;
   setMinConfidence: (val: number) => void;
+  onTriggerScan: () => void;
+  isScanning: boolean;
 }
 
 export const FilterControls: React.FC<FilterControlsProps> = ({
@@ -20,7 +22,9 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
   directionFilter,
   setDirectionFilter,
   minConfidence,
-  setMinConfidence
+  setMinConfidence,
+  onTriggerScan,
+  isScanning
 }) => {
   return (
     <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800/80 rounded-2xl p-4 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-[20]">
@@ -99,7 +103,25 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
             className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
           />
         </div>
+        {/* Force Trigger Scan Button */}
+        <div className="flex items-end h-full pt-1.5 md:pt-0">
+          <button
+            type="button"
+            onClick={onTriggerScan}
+            disabled={isScanning}
+            className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-indigo-500/10 cursor-pointer active:scale-[0.98]"
+            title="Trigger Scanner Pipeline Immediately"
+          >
+            {isScanning ? (
+              <Loader2 size={14} className="animate-spin text-cyan-200" />
+            ) : (
+              <Rocket size={14} className="text-cyan-200" />
+            )}
+            <span>Force Trigger Scan</span>
+          </button>
+        </div>
       </div>
     </div>
   );
 };
+

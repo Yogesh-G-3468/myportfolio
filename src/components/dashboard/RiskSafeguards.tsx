@@ -36,21 +36,28 @@ export const RiskSafeguards: React.FC<RiskSafeguardsProps> = ({ riskState }) => 
           <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-2">
             Realized PnL (Today)
           </div>
-          <div className={`text-2xl font-black tabular-nums tracking-tight transition-colors ${
-            getPnLColor(riskState?.realized_pnl_today)
-          }`}>
-            {riskState ? formatPnL(riskState.realized_pnl_today) : "₹0.00"}
-          </div>
-          <div className="flex items-center gap-1 text-[10px] text-slate-500 mt-1 font-medium">
-            {(riskState?.realized_pnl_today ?? 0) > 0 ? (
-              <TrendingUp size={11} className="text-emerald-400" />
-            ) : (riskState?.realized_pnl_today ?? 0) < 0 ? (
-              <TrendingDown size={11} className="text-rose-400" />
-            ) : (
-              <Clock size={11} className="text-slate-500" />
-            )}
-            Real-time session outcomes
-          </div>
+          {(() => {
+            const realizedPnl = riskState?.realized_pnl !== undefined ? riskState.realized_pnl : riskState?.realized_pnl_today;
+            return (
+              <>
+                <div className={`text-2xl font-black tabular-nums tracking-tight transition-colors ${
+                  getPnLColor(realizedPnl)
+                }`}>
+                  {riskState ? formatPnL(realizedPnl) : "₹0.00"}
+                </div>
+                <div className="flex items-center gap-1 text-[10px] text-slate-500 mt-1 font-medium">
+                  {(realizedPnl ?? 0) > 0 ? (
+                    <TrendingUp size={11} className="text-emerald-400" />
+                  ) : (realizedPnl ?? 0) < 0 ? (
+                    <TrendingDown size={11} className="text-rose-400" />
+                  ) : (
+                    <Clock size={11} className="text-slate-500" />
+                  )}
+                  Real-time session outcomes
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         {/* Weekly/Monthly aggregated PnL */}

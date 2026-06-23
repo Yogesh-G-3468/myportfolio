@@ -676,8 +676,7 @@ export const MOCK_STOCK_DETAILS: Record<string, StockDetailsResponse> = {
 };
 
 export const generateMockStockDetails = (symbol: string): StockDetailsResponse => {
-  if (MOCK_STOCK_DETAILS[symbol]) return MOCK_STOCK_DETAILS[symbol];
-  return {
+  const baseDetails = MOCK_STOCK_DETAILS[symbol] || {
     symbol,
     close: 1000.0,
     action: "HOLD",
@@ -699,6 +698,49 @@ export const generateMockStockDetails = (symbol: string): StockDetailsResponse =
     ai_score_adjustment: 0.0,
     ai_input_payload: { symbol },
     ai_output_payload: { remarks: "Demo fallback placeholder." }
+  };
+
+  const indicatorsObj = {
+    rsi: baseDetails.rsi,
+    rsi_14: baseDetails.rsi,
+    relative_volume: baseDetails.relative_volume,
+    z_score: baseDetails.z_score,
+    volume: baseDetails.volume,
+    avg_volume: baseDetails.avg_volume,
+    liquidity: baseDetails.liquidity_score,
+    liquidity_score: baseDetails.liquidity_score,
+    spread: baseDetails.execution_spread,
+    bid_ask_spread: baseDetails.execution_spread,
+    spread_slippage_proxy: baseDetails.execution_spread,
+    opening_range: baseDetails.opening_range_status,
+    opening_range_status: baseDetails.opening_range_status,
+    opening_gap: baseDetails.opening_gap_pct,
+    gap_context: baseDetails.opening_gap_pct
+  };
+
+  const scannerInfo = MOCK_SCANNER_RESULTS[symbol];
+  if (scannerInfo) {
+    return {
+      ...baseDetails,
+      strategy: scannerInfo.strategy,
+      signal_state: scannerInfo.signal_state,
+      trade_state: scannerInfo.trade_state,
+      score: scannerInfo.score,
+      confidence: scannerInfo.confidence,
+      entry_zone: scannerInfo.entry_zone,
+      stop_loss: scannerInfo.stop_loss,
+      target_1: scannerInfo.target_1,
+      target_2: scannerInfo.target_2,
+      position_size: scannerInfo.position_size,
+      risk_per_trade: scannerInfo.risk_per_trade,
+      reasons: scannerInfo.reasons || baseDetails.reasons,
+      indicators: indicatorsObj
+    };
+  }
+
+  return {
+    ...baseDetails,
+    indicators: indicatorsObj
   };
 };
 

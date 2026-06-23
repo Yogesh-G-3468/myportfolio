@@ -13,7 +13,14 @@ import {
   Zap,
   RefreshCw,
   LogOut,
-  ShieldAlert
+  ShieldAlert,
+  Rocket,
+  Server,
+  Terminal,
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+  ChevronDown
 } from "lucide-react";
 
 import {
@@ -23,7 +30,11 @@ import {
   RiskState,
   BacktestResult,
   formatCurrency,
-  getPnLColor
+  getPnLColor,
+  SystemStatus,
+  TriggerScanResponse,
+  NewsSentimentItem,
+  NewsSentimentResponse
 } from "../../components/dashboard/types";
 
 import {
@@ -37,7 +48,8 @@ import {
   getStratosToken,
   saveStratosAuth,
   clearStratosAuth,
-  stratosFetch
+  stratosFetch,
+  BASE_URL
 } from "../../components/dashboard/api";
 
 import { StatusCards } from "../../components/dashboard/StatusCards";
@@ -46,6 +58,7 @@ import { FilterControls } from "../../components/dashboard/FilterControls";
 import { WatchlistScanner } from "../../components/dashboard/WatchlistScanner";
 import { AnalysisDrawer } from "../../components/dashboard/AnalysisDrawer";
 import { BacktestSandbox } from "../../components/dashboard/BacktestSandbox";
+import { NewsSentimentFeed } from "../../components/dashboard/NewsSentimentFeed";
 
 export default function TradingDashboard() {
   const [mounted, setMounted] = useState(false);
@@ -69,6 +82,17 @@ export default function TradingDashboard() {
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(10);
+
+  // Diagnostics & Force Scan States
+  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+  const [showSystemStatus, setShowSystemStatus] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanResultModalData, setScanResultModalData] = useState<TriggerScanResponse | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+
+  // News Sentiment States
+  const [newsSentiment, setNewsSentiment] = useState<NewsSentimentResponse | null>(null);
+  const [selectedStockNews, setSelectedStockNews] = useState<NewsSentimentItem | null>(null);
 
   // Filter States
   const [selectedUniverse, setSelectedUniverse] = useState<"NIFTY50" | "FO" | "CUSTOM">("NIFTY50");
@@ -124,6 +148,16 @@ export default function TradingDashboard() {
     };
   }, []);
 
+  // Toast auto-dismiss effect
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => {
+        setToastMessage(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
+
   // Trigger fetch when filters shift
   useEffect(() => {
     if (mounted && (token || isDemoMode)) {
@@ -172,22 +206,58 @@ export default function TradingDashboard() {
     setDetailsLoading(true);
     setDetailsError(null);
     setStockDetails(null);
+    setSelectedStockNews(null);
 
     if (isDemoMode) {
       setTimeout(() => {
         setStockDetails(generateMockStockDetails(symbol));
+        setSelectedStockNews({
+          headlines: [
+            `${symbol} announces solid expansion plans and Q1 growth forecasts.`,
+            `Retail demand signals solid sector volumes suggesting moderate upside for ${symbol}.`
+          ],
+          direction: ["RELIANCE.NS", "BHARTIARTL.NS", "ICICIBANK.NS"].includes(symbol) 
+            ? "bullish" 
+            : ["TCS.NS", "SBIN.NS"].includes(symbol) 
+            ? "bearish" 
+            : "neutral",
+          horizon: "intraday",
+          impact: ["RELIANCE.NS", "TCS.NS"].includes(symbol) ? "high" : "medium",
+          summary: `Sector volumes suggest solid trend continuation for ${symbol} with positive sentiment signals.`,
+          last_updated: new Date().toISOString()
+        });
         setDetailsLoading(false);
       }, 400);
       return;
     }
 
     try {
-      const response = await stratosFetch(`/signals/${symbol}`);
-      if (!response.ok) {
-        throw new Error(`Failed to load technical analysis for ${symbol}`);
+      const [detailsResResult, newsResResult] = await Promise.all([
+        stratosFetch(`/signals/${symbol}`).catch(err => {
+          console.error(`Failed to fetch details for ${symbol}:`, err);
+          return null;
+        }),
+        stratosFetch(`/signals/news/${symbol}`).catch(err => {
+          console.error(`Failed to fetch news for ${symbol}:`, err);
+          return null;
+        })
+      ]);
+
+      if (detailsResResult && detailsResResult.ok) {
+        const data: StockDetailsResponse = await detailsResResult.json();
+        setStockDetails(data);
+      } else {
+        setDetailsError(`Technical scan indicators are currently unavailable for ${symbol}.`);
       }
-      const data: StockDetailsResponse = await response.json();
-      setStockDetails(data);
+
+      if (newsResResult && newsResResult.ok) {
+        try {
+          const newsData: NewsSentimentItem = await newsResResult.json();
+          setSelectedStockNews(newsData);
+        } catch (e) {
+          console.error("Error parsing news JSON:", e);
+        }
+      }
     } catch (err: any) {
       console.error(err);
       setDetailsError(err.message || "Failed to sync detailed metrics.");
@@ -234,6 +304,81 @@ export default function TradingDashboard() {
         });
 
         setRiskState(MOCK_RISK);
+        
+        const mockStatus: SystemStatus = {
+          app_env: "development",
+          current_time_ist: new Date().toISOString(),
+          is_market_day: true,
+          is_scan_window: true,
+          bypass_market_hours: true,
+          active_universe: "NIFTY50",
+          symbols: ["RELIANCE.NS", "HDFCBANK.NS", "INFY.NS", "TCS.NS", "ICICIBANK.NS"],
+          scheduler_running: true,
+          cache_keys: ["RELIANCE.NS", "HDFCBANK.NS"],
+          cache_summary: {
+            "RELIANCE.NS": {
+              action: "BUY",
+              score: 0.82,
+              reasons: ["EMA alignment bullish", "Relative volume expansion"]
+            },
+            "HDFCBANK.NS": {
+              action: "HOLD",
+              score: 0.45,
+              reasons: ["RSI neutral", "Inside narrow range"]
+            }
+          }
+        };
+        setSystemStatus(mockStatus);
+
+        // Mock news sentiment response
+        const mockNews: NewsSentimentResponse = {
+          "RELIANCE.NS": {
+            headlines: [
+              "Reliance announces solid expansion plans and Q1 growth forecasts.",
+              "Reliance Retail launches new store formats in tier-2 cities."
+            ],
+            direction: "bullish",
+            horizon: "intraday",
+            impact: "medium",
+            summary: "Positive earnings forecast and solid sector volumes suggest moderate upside.",
+            last_updated: new Date().toISOString()
+          },
+          "TCS.NS": {
+            headlines: [
+              "TCS faces minor headwinds in retail segments, margins stay flat.",
+              "IT sector consolidation continues as overseas pipelines slow."
+            ],
+            direction: "bearish",
+            horizon: "intraday",
+            impact: "medium",
+            summary: "Overseas pipeline slowdown and margin pressure signal bearish near-term outlook.",
+            last_updated: new Date().toISOString()
+          },
+          "HDFCBANK.NS": {
+            headlines: [
+              "HDFC Bank shares consolidate following credit expansion adjustments.",
+              "Private banking indexes show mixed flows this morning."
+            ],
+            direction: "neutral",
+            horizon: "intraday",
+            impact: "low",
+            summary: "Sideways movements expected. Sentiment indicators are neutral.",
+            last_updated: new Date().toISOString()
+          },
+          "BHARTIARTL.NS": {
+            headlines: [
+              "Bharti Airtel announces next-gen network rollouts across major regions.",
+              "Airtel customer metrics hit target thresholds ahead of schedule."
+            ],
+            direction: "bullish",
+            horizon: "intraday",
+            impact: "high",
+            summary: "Robust subscriber additions and infrastructure extensions warrant high conviction.",
+            last_updated: new Date().toISOString()
+          }
+        };
+        setNewsSentiment(mockNews);
+
         setLastRefreshed(new Date());
         setIsRefreshing(false);
       }, 300);
@@ -264,9 +409,17 @@ export default function TradingDashboard() {
       }
       queryParams.append("max_results", "50");
 
-      const [signalsRes, riskRes] = await Promise.all([
+      const [signalsRes, riskRes, statusResResult, newsResResult] = await Promise.all([
         stratosFetch(`/signals/live?${queryParams.toString()}`),
-        stratosFetch("/signals/risk/state")
+        stratosFetch("/signals/risk/state"),
+        stratosFetch("/signals/status").catch(err => {
+          console.error("Failed to fetch system status:", err);
+          return null;
+        }),
+        stratosFetch("/signals/news").catch(err => {
+          console.error("Failed to fetch news sentiment:", err);
+          return null;
+        })
       ]);
 
       if (!signalsRes.ok || !riskRes.ok) {
@@ -293,8 +446,32 @@ export default function TradingDashboard() {
       const signalsData: LiveScannerResponse = await signalsRes.json();
       const riskData: RiskState = await riskRes.json();
 
+      let statusData: SystemStatus | null = null;
+      if (statusResResult && statusResResult.ok) {
+        try {
+          statusData = await statusResResult.json();
+        } catch (e) {
+          console.error("Error parsing status JSON:", e);
+        }
+      }
+
+      let newsData: NewsSentimentResponse | null = null;
+      if (newsResResult && newsResResult.ok) {
+        try {
+          newsData = await newsResResult.json();
+        } catch (e) {
+          console.error("Error parsing news JSON:", e);
+        }
+      }
+
       setLiveData(signalsData);
       setRiskState(riskData);
+      if (statusData) {
+        setSystemStatus(statusData);
+      }
+      if (newsData) {
+        setNewsSentiment(newsData);
+      }
       setLastRefreshed(new Date());
     } catch (err: any) {
       console.error(err);
@@ -304,13 +481,67 @@ export default function TradingDashboard() {
     }
   };
 
+  const handleTriggerScan = async () => {
+    if (isScanning) return;
+    setIsScanning(true);
+    setToastMessage(null);
+
+    if (isDemoMode) {
+      setTimeout(() => {
+        const demoResult: TriggerScanResponse = {
+          status: "success",
+          processed_count: 5,
+          processed: [
+            { symbol: "RELIANCE.NS", action: "BUY", score: 0.82, trade_state: "OPEN" },
+            { symbol: "HDFCBANK.NS", action: "HOLD", score: 0.45, trade_state: "NOT_CREATED" },
+            { symbol: "INFY.NS", action: "SKIP", score: 0.32, trade_state: "NOT_CREATED" },
+            { symbol: "TCS.NS", action: "SELL", score: 0.76, trade_state: "OPEN" },
+            { symbol: "ICICIBANK.NS", action: "BUY", score: 0.68, trade_state: "NOT_CREATED" }
+          ],
+          errors: [],
+          cache_keys: ["RELIANCE.NS", "HDFCBANK.NS", "INFY.NS", "TCS.NS", "ICICIBANK.NS"]
+        };
+        setIsScanning(false);
+        setScanResultModalData(demoResult);
+        setToastMessage({ text: "Demo scan completed successfully!", type: "success" });
+        fetchDashboardData();
+      }, 1500);
+      return;
+    }
+
+    try {
+      const response = await stratosFetch("/signals/trigger-scan", {
+        method: "POST"
+      });
+
+      if (!response.ok) {
+        let errorMsg = "Trigger scan failed";
+        try {
+          const errBody = await response.json();
+          errorMsg = errBody.detail || JSON.stringify(errBody);
+        } catch {}
+        throw new Error(errorMsg);
+      }
+
+      const data: TriggerScanResponse = await response.json();
+      setScanResultModalData(data);
+      setToastMessage({ text: "Scan triggered and completed successfully!", type: "success" });
+      await fetchDashboardData();
+    } catch (err: any) {
+      console.error(err);
+      setToastMessage({ text: err.message || "Failed to trigger scan.", type: "error" });
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthLoading(true);
     setAuthError(null);
 
     try {
-      const response = await fetch("https://stratos.yogeshwaran.space/auth/login", {
+      const response = await fetch(`${BASE_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -590,7 +821,7 @@ export default function TradingDashboard() {
                 <Activity size={20} className="text-white" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-xl font-black tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
                     STRATOS TERMINAL
                   </h1>
@@ -604,8 +835,119 @@ export default function TradingDashboard() {
                     <span className={`w-1.5 h-1.5 rounded-full ${isDemoMode ? "bg-amber-500 animate-pulse" : apiError ? "bg-rose-500" : "bg-emerald-500 animate-ping"}`} />
                     {isDemoMode ? "Demo Mode" : apiError ? "Server Interrupted" : "API Operational"}
                   </span>
+
+                  {/* System Status Popover Dropdown */}
+                  <div className="relative z-[90]">
+                    <button
+                      type="button"
+                      onClick={() => setShowSystemStatus(!showSystemStatus)}
+                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition-colors cursor-pointer ${
+                        systemStatus?.scheduler_running
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                          : "bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20"
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${systemStatus?.scheduler_running ? "bg-emerald-400 animate-pulse" : "bg-rose-500 animate-pulse"}`} />
+                      System Status
+                      <ChevronDown size={10} className={`transition-transform duration-200 ${showSystemStatus ? "rotate-180" : ""}`} />
+                    </button>
+
+                    <AnimatePresence>
+                      {showSystemStatus && (
+                        <>
+                          {/* Invisible Backdrop to close on click outside */}
+                          <div 
+                            className="fixed inset-0 z-40" 
+                            onClick={() => setShowSystemStatus(false)} 
+                          />
+                          <motion.div
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute left-0 mt-2 w-72 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-4 z-50 backdrop-blur-xl space-y-3.5 text-xs text-slate-300"
+                          >
+                            <div className="flex items-center justify-between border-b border-slate-850 pb-2">
+                              <span className="font-bold text-white tracking-wider flex items-center gap-1.5 uppercase text-[10px] leading-none">
+                                <Server size={12} className="text-cyan-400" />
+                                Diagnostics
+                              </span>
+                              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-slate-950 px-1.5 py-0.5 rounded border border-slate-850">
+                                {systemStatus?.app_env || "N/A"}
+                              </span>
+                            </div>
+
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-500 font-medium">Scheduler Status:</span>
+                                <span className={`font-bold flex items-center gap-1.5 ${systemStatus?.scheduler_running ? "text-emerald-400" : "text-rose-400"}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${systemStatus?.scheduler_running ? "bg-emerald-400 animate-ping" : "bg-rose-400"}`} />
+                                  {systemStatus?.scheduler_running ? "ACTIVE" : "INACTIVE"}
+                                </span>
+                              </div>
+
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-500 font-medium">Server Time (IST):</span>
+                                <span className="font-bold text-slate-200 tabular-nums">
+                                  {systemStatus?.current_time_ist 
+                                    ? new Date(systemStatus.current_time_ist).toLocaleTimeString("en-US", { hour12: false }) 
+                                    : "N/A"}
+                                </span>
+                              </div>
+
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-500 font-medium">Active Universe:</span>
+                                <span className="font-bold text-cyan-400 tracking-wide">
+                                  {systemStatus?.active_universe || "N/A"}
+                                </span>
+                              </div>
+
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-500 font-medium">Bypass Market Hours:</span>
+                                <span className={`font-bold px-1.5 py-0.2 rounded text-[10px] ${
+                                  systemStatus?.bypass_market_hours 
+                                    ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20" 
+                                    : "text-slate-400 bg-slate-800 border border-slate-700"
+                                }`}>
+                                  {systemStatus?.bypass_market_hours ? "ENABLED" : "DISABLED"}
+                                </span>
+                              </div>
+
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-500 font-medium">Cached Symbols:</span>
+                                <span className="font-bold text-slate-200 tabular-nums">
+                                  {systemStatus?.cache_keys?.length ?? 0} symbols
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Cache Summaries Sub-panel */}
+                            {systemStatus?.cache_summary && Object.keys(systemStatus.cache_summary).length > 0 && (
+                              <div className="border-t border-slate-850 pt-2 space-y-1.5">
+                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Cache Summaries</span>
+                                <div className="max-h-24 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                                  {Object.entries(systemStatus.cache_summary).map(([sym, details]) => (
+                                    <div key={sym} className="flex justify-between items-center bg-slate-950/40 p-1.5 rounded-lg border border-slate-850/50">
+                                      <span className="font-bold text-slate-400 text-[10px]">{sym}</span>
+                                      <div className="flex items-center gap-1.5 text-[10px]">
+                                        <span className={`font-black ${details.action === "BUY" ? "text-emerald-400" : details.action === "SELL" ? "text-rose-400" : "text-slate-400"}`}>
+                                          {details.action}
+                                        </span>
+                                        <span className="text-slate-600">/</span>
+                                        <span className="text-cyan-400 font-semibold">{Math.round(details.score * 100)}%</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
-                <p className="text-xs text-slate-500 font-medium">
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
                   {lastRefreshed ? `Last sync: ${lastRefreshed.toLocaleTimeString()}` : "Pending initial data handshake"}
                 </p>
               </div>
@@ -717,10 +1059,10 @@ export default function TradingDashboard() {
               </div>
               <div>
                 <h4 className="font-bold text-red-400 text-sm tracking-wider uppercase">
-                  ALERT: Daily Loss Cap Exceeded. Kill-Switch Active.
+                  ALERT: Risk Limit Breached (Kill-Switch Engaged)
                 </h4>
                 <p className="text-xs text-red-200/80 font-medium">
-                  All automated signals and manual order executions are halted for the remainder of today&apos;s session. Risk safeguards engaged.
+                  The risk limit has been breached and the engine has halted trading for the day. All automated scans and order routing processes are suspended.
                 </p>
               </div>
             </motion.div>
@@ -748,35 +1090,48 @@ export default function TradingDashboard() {
             setDirectionFilter={setDirectionFilter}
             minConfidence={minConfidence}
             setMinConfidence={setMinConfidence}
+            onTriggerScan={handleTriggerScan}
+            isScanning={isScanning}
           />
 
           {/* MAIN GRID */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             
-            {/* LIVE WATCHLIST SCANNER GRID */}
-            <WatchlistScanner
-              liveData={liveData}
-              handleSelectStock={handleSelectStock}
-            />
+            {/* Left Column: Watchlist Scanner & News Sentiment Feed */}
+            <div className="lg:col-span-2 flex flex-col gap-6">
+              {/* LIVE WATCHLIST SCANNER GRID */}
+              <WatchlistScanner
+                liveData={liveData}
+                handleSelectStock={handleSelectStock}
+              />
 
-            {/* BACKTESTING SIMULATION LAB */}
-            <BacktestSandbox
-              handleRunBacktest={handleRunBacktest}
-              backtestUniverse={backtestUniverse}
-              setBacktestUniverse={setBacktestUniverse}
-              backtestInterval={backtestInterval}
-              setBacktestInterval={setBacktestInterval}
-              backtestPeriod={backtestPeriod}
-              setBacktestPeriod={setBacktestPeriod}
-              backtestRiskPct={backtestRiskPct}
-              setBacktestRiskPct={setBacktestRiskPct}
-              backtestLoading={backtestLoading}
-              backtestStatus={backtestStatus}
-              backtestError={backtestError}
-              backtestResults={backtestResults}
-              backtestExpanded={backtestExpanded}
-              setBacktestExpanded={setBacktestExpanded}
-            />
+              {/* LIVE NEWS SENTIMENT FEED */}
+              <NewsSentimentFeed
+                newsSentiment={newsSentiment}
+                onSelectStock={handleSelectStock}
+              />
+            </div>
+
+            {/* Right Column: Backtesting Simulation Lab */}
+            <div className="lg:col-span-1">
+              <BacktestSandbox
+                handleRunBacktest={handleRunBacktest}
+                backtestUniverse={backtestUniverse}
+                setBacktestUniverse={setBacktestUniverse}
+                backtestInterval={backtestInterval}
+                setBacktestInterval={setBacktestInterval}
+                backtestPeriod={backtestPeriod}
+                setBacktestPeriod={setBacktestPeriod}
+                backtestRiskPct={backtestRiskPct}
+                setBacktestRiskPct={setBacktestRiskPct}
+                backtestLoading={backtestLoading}
+                backtestStatus={backtestStatus}
+                backtestError={backtestError}
+                backtestResults={backtestResults}
+                backtestExpanded={backtestExpanded}
+                setBacktestExpanded={setBacktestExpanded}
+              />
+            </div>
 
           </div>
 
@@ -793,12 +1148,190 @@ export default function TradingDashboard() {
           <AnalysisDrawer
             selectedStock={selectedStock}
             stockDetails={stockDetails}
+            selectedStockNews={selectedStockNews}
             detailsLoading={detailsLoading}
             detailsError={detailsError}
             onClose={() => setSelectedStock(null)}
           />
         )}
       </AnimatePresence>
+
+      {/* FORCE TRIGGER SCAN RESULTS MODAL */}
+      <AnimatePresence>
+        {scanResultModalData && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            {/* Modal Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setScanResultModalData(null)}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
+            />
+
+            {/* Modal Container */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="relative w-full max-w-lg bg-slate-900/90 border border-slate-800 rounded-3xl shadow-2xl p-6 overflow-hidden z-10 backdrop-blur-xl"
+            >
+              {/* Premium top accent gradient */}
+              <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-500 to-indigo-500 to-transparent" />
+              
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-cyan-500/10 border border-cyan-500/20 rounded-xl flex items-center justify-center text-cyan-400">
+                    <CheckCircle2 size={20} className="animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-base">Scanner Loop Execution Success</h3>
+                    <p className="text-[10px] text-slate-500 font-medium">Cache refreshed and signals watchlist updated</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setScanResultModalData(null)}
+                  className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <AlertCircle size={18} className="rotate-45" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Status Summary */}
+                <div className="grid grid-cols-2 gap-3 bg-slate-950/50 border border-slate-850 p-3.5 rounded-2xl text-xs">
+                  <div>
+                    <span className="text-slate-500 block mb-0.5">Scanned Tickers</span>
+                    <span className="text-xl font-black text-cyan-400 tabular-nums">
+                      {scanResultModalData.processed_count}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block mb-0.5">Cache Keys Active</span>
+                    <span className="text-xl font-black text-indigo-400 tabular-nums">
+                      {scanResultModalData.cache_keys?.length ?? 0}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Processed Tickers Table */}
+                <div className="space-y-2">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Processed Telemetry</span>
+                  <div className="max-h-48 overflow-y-auto border border-slate-850 rounded-xl overflow-hidden custom-scrollbar bg-slate-950/30">
+                    <table className="w-full text-[11px] text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-950/80 text-slate-500 uppercase tracking-wider text-[9px] border-b border-slate-850">
+                          <th className="p-2.5 font-bold">Ticker</th>
+                          <th className="p-2.5 font-bold text-center">Action</th>
+                          <th className="p-2.5 font-bold text-right">Score</th>
+                          <th className="p-2.5 font-bold text-center">State</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-900/60">
+                        {scanResultModalData.processed?.map((item) => (
+                          <tr key={item.symbol} className="hover:bg-slate-900/30 transition-colors">
+                            <td className="p-2.5 font-black text-slate-200">{item.symbol}</td>
+                            <td className="p-2.5 text-center">
+                              <span className={`inline-block px-1.5 py-0.2 rounded text-[9px] font-bold border ${
+                                item.action === "BUY"
+                                  ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/25"
+                                  : item.action === "SELL"
+                                  ? "text-rose-400 bg-rose-500/10 border-rose-500/25"
+                                  : "text-slate-400 bg-slate-800 border-slate-700/50"
+                              }`}>
+                                {item.action}
+                              </span>
+                            </td>
+                            <td className="p-2.5 text-right font-bold text-cyan-400 tabular-nums">
+                              {Math.round(item.score * 100)}%
+                            </td>
+                            <td className="p-2.5 text-center text-slate-400 font-semibold text-[10px]">
+                              <span className={`inline-block px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                                item.trade_state === "OPEN"
+                                  ? "text-cyan-400 bg-cyan-500/10"
+                                  : "text-slate-500 bg-slate-950"
+                              }`}>
+                                {item.trade_state}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Errors display */}
+                {scanResultModalData.errors && scanResultModalData.errors.length > 0 && (
+                  <div className="bg-rose-500/10 border border-rose-500/25 p-3 rounded-2xl space-y-1">
+                    <span className="text-[10px] font-bold text-rose-400 uppercase tracking-widest flex items-center gap-1">
+                      <AlertTriangle size={12} />
+                      Pipeline Warnings / Errors
+                    </span>
+                    <div className="max-h-20 overflow-y-auto text-[10px] text-rose-300 space-y-1 custom-scrollbar">
+                      {scanResultModalData.errors.map((err: any, idx: number) => (
+                        <p key={idx}>{typeof err === "string" ? err : JSON.stringify(err)}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-5 pt-3 border-t border-slate-850 flex justify-end">
+                <button
+                  onClick={() => setScanResultModalData(null)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 active:scale-[0.98] text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
+                >
+                  Acknowledge & Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Notification Banner */}
+      <div className="fixed bottom-6 right-6 z-[120] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+        <AnimatePresence>
+          {toastMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              className={`p-4 rounded-2xl border backdrop-blur-md shadow-2xl flex items-start gap-3 pointer-events-auto ${
+                toastMessage.type === "success"
+                  ? "bg-slate-900/90 border-emerald-500/20 text-slate-100"
+                  : "bg-slate-900/90 border-rose-500/20 text-slate-100"
+              }`}
+            >
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                toastMessage.type === "success"
+                  ? "bg-emerald-500/10 text-emerald-400"
+                  : "bg-rose-500/10 text-rose-400"
+              }`}>
+                {toastMessage.type === "success" ? (
+                  <CheckCircle2 size={16} />
+                ) : (
+                  <AlertTriangle size={16} />
+                )}
+              </div>
+              <div className="flex-1 text-xs">
+                <h5 className="font-bold text-white mb-0.5">
+                  {toastMessage.type === "success" ? "System Event Success" : "System Error Action"}
+                </h5>
+                <p className="text-slate-400 font-medium leading-relaxed">{toastMessage.text}</p>
+              </div>
+              <button
+                onClick={() => setToastMessage(null)}
+                className="text-slate-500 hover:text-white transition-colors cursor-pointer shrink-0 mt-0.5"
+              >
+                <AlertCircle size={14} className="rotate-45" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
