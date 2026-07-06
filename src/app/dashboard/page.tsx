@@ -20,7 +20,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   Clock,
-  ChevronDown
+  ChevronDown,
+  Youtube
 } from "lucide-react";
 
 import {
@@ -59,6 +60,7 @@ import { WatchlistScanner } from "../../components/dashboard/WatchlistScanner";
 import { AnalysisDrawer } from "../../components/dashboard/AnalysisDrawer";
 import { BacktestSandbox } from "../../components/dashboard/BacktestSandbox";
 import { NewsSentimentFeed } from "../../components/dashboard/NewsSentimentFeed";
+import { YoutubeSummarizer } from "../../components/dashboard/YoutubeSummarizer";
 
 export default function TradingDashboard() {
   const [mounted, setMounted] = useState(false);
@@ -117,6 +119,7 @@ export default function TradingDashboard() {
   const [backtestResults, setBacktestResults] = useState<BacktestResult | null>(null);
   const [backtestError, setBacktestError] = useState<string | null>(null);
   const [backtestExpanded, setBacktestExpanded] = useState(true);
+  const [activeRightTab, setActiveRightTab] = useState<"backtest" | "youtube">("backtest");
 
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
   const backtestPollTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -1112,25 +1115,81 @@ export default function TradingDashboard() {
               />
             </div>
 
-            {/* Right Column: Backtesting Simulation Lab */}
-            <div className="lg:col-span-1">
-              <BacktestSandbox
-                handleRunBacktest={handleRunBacktest}
-                backtestUniverse={backtestUniverse}
-                setBacktestUniverse={setBacktestUniverse}
-                backtestInterval={backtestInterval}
-                setBacktestInterval={setBacktestInterval}
-                backtestPeriod={backtestPeriod}
-                setBacktestPeriod={setBacktestPeriod}
-                backtestRiskPct={backtestRiskPct}
-                setBacktestRiskPct={setBacktestRiskPct}
-                backtestLoading={backtestLoading}
-                backtestStatus={backtestStatus}
-                backtestError={backtestError}
-                backtestResults={backtestResults}
-                backtestExpanded={backtestExpanded}
-                setBacktestExpanded={setBacktestExpanded}
-              />
+            {/* Right Column: Backtesting & YouTube Summarizer Tabs */}
+            <div className="lg:col-span-1 flex flex-col gap-4">
+              {/* Tab Header Buttons */}
+              <div className="flex gap-2 p-1 bg-slate-950/60 border border-slate-850 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setActiveRightTab("backtest")}
+                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    activeRightTab === "backtest"
+                      ? "bg-slate-900 border border-slate-800 text-purple-400 shadow-md shadow-purple-500/5"
+                      : "text-slate-500 hover:text-slate-355"
+                  }`}
+                >
+                  <Server size={13} />
+                  Simulation Lab
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveRightTab("youtube")}
+                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    activeRightTab === "youtube"
+                      ? "bg-slate-900 border border-slate-800 text-cyan-400 shadow-md shadow-cyan-500/5"
+                      : "text-slate-500 hover:text-slate-355"
+                  }`}
+                >
+                  <Youtube size={13} />
+                  YouTube Notes
+                </button>
+              </div>
+
+              {/* Tab Content Panels */}
+              <AnimatePresence mode="wait">
+                {activeRightTab === "backtest" ? (
+                  <motion.div
+                    key="backtest-tab"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex flex-col h-full"
+                  >
+                    <BacktestSandbox
+                      handleRunBacktest={handleRunBacktest}
+                      backtestUniverse={backtestUniverse}
+                      setBacktestUniverse={setBacktestUniverse}
+                      backtestInterval={backtestInterval}
+                      setBacktestInterval={setBacktestInterval}
+                      backtestPeriod={backtestPeriod}
+                      setBacktestPeriod={setBacktestPeriod}
+                      backtestRiskPct={backtestRiskPct}
+                      setBacktestRiskPct={setBacktestRiskPct}
+                      backtestLoading={backtestLoading}
+                      backtestStatus={backtestStatus}
+                      backtestError={backtestError}
+                      backtestResults={backtestResults}
+                      backtestExpanded={backtestExpanded}
+                      setBacktestExpanded={setBacktestExpanded}
+                    />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="youtube-tab"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex flex-col h-full"
+                  >
+                    <YoutubeSummarizer
+                      isDemoMode={isDemoMode}
+                      setToastMessage={setToastMessage}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
           </div>

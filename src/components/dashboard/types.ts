@@ -198,4 +198,17 @@ export interface NewsSentimentItem {
 
 export type NewsSentimentResponse = Record<string, NewsSentimentItem>;
 
+export interface SummarizePayload {
+  youtube_url: string;
+  notion_api_key?: string;
+  notion_database_id?: string;
+  gemini_api_key?: string;
+  model?: string;
+  run_in_background?: boolean;
+}
 
+export interface SummarizeResponse {
+  status: "success" | "processing" | string;
+  message: string;
+  pages: string[];
+}
