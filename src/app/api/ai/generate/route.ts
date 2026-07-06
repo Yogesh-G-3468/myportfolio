@@ -1,7 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
-import { requireAuth } from '@/lib/auth';
-import { YouTubeTranscriptExtractor } from '@/lib/youtube';
+import { requireAuth, getSessionFromHeaders } from '@/lib/auth';
+import axios from 'axios';
+
+const BACKEND_URL = process.env.BACKEND_URL || 'https://stratos.yogeshwaran.space';
+
+async function getStratosJwtToken(request: NextRequest): Promise<string> {
+    // 1. Try to extract and check if current session token is a valid JWT
+    const token = await getSessionFromHeaders(request);
+    if (token && token.includes('.') && token.split('.').length === 3) {
+        return token;
+    }
+
+    // 2. Fallback: Authenticate with the Stratos backend using default operator credentials
+    try {
+        const response = await axios.post(`${BACKEND_URL}/auth/login`, {
+            username: 'yogesh',
+            password: 'stratos_pass'
+        });
+        return response.data.access_token;
+    } catch (tokenErr) {
+        try {
+            // Try /auth/token as fallback
+            const response = await axios.post(`${BACKEND_URL}/auth/token`, {
+                username: 'yogesh',
+                password: 'stratos_pass'
+            });
+            return response.data.access_token;
+        } catch (loginErr) {
+            console.error('Failed to authenticate with Stratos backend:', loginErr);
+            throw new Error('Stratos authentication handshake failed');
+        }
+    }
+}
 
 export async function POST(request: NextRequest) {
     // 1. Auth Check
@@ -20,29 +51,34 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const extractor = new YouTubeTranscriptExtractor();
-        const videoId = extractor.extractVideoId(url);
+        // Parse video ID from URL
+        const videoIdMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+        
+        // 2. Fetch Transcript using Stratos API
+        console.log(`Fetching transcript from Stratos API for: ${url}`);
+        const jwtToken = await getStratosJwtToken(request);
+        
+        const apiResponse = await axios.post(`${BACKEND_URL}/summarize/transcript`, {
+            youtube_url: url
+        }, {
+            headers: {
+                Authorization: `Bearer ${jwtToken}`
+            }
+        });
 
-        if (!videoId) {
+        if (apiResponse.status !== 200 || !apiResponse.data.transcripts || apiResponse.data.transcripts.length === 0) {
             return NextResponse.json(
-                { error: 'Invalid YouTube URL' },
+                { error: 'Failed to fetch video transcript from Stratos. The video might not have captions enabled.' },
                 { status: 400 }
             );
         }
 
-        // 2. Fetch Transcript using Extractor
-        console.log(`Fetching transcript for video: ${videoId}`);
-        const transcriptData = await extractor.getVideoTranscript(videoId);
+        const transcriptItem = apiResponse.data.transcripts[0];
+        let transcriptText = transcriptItem.transcript_text;
+        const videoId = videoIdMatch ? videoIdMatch[1] : (transcriptItem.video_id || '');
+        const videoTitle = transcriptItem.title || '';
 
-        if (!transcriptData || !transcriptData.transcriptText) {
-            return NextResponse.json(
-                { error: 'Failed to fetch video transcript. The video might not have captions enabled.' },
-                { status: 400 }
-            );
-        }
-
-        let transcriptText = transcriptData.transcriptText;
-        console.log(`Transcript fetched. Length: ${transcriptText.length} characters.`);
+        console.log(`Transcript fetched. Title: "${videoTitle}", Length: ${transcriptText.length} characters.`);
 
         // Truncate if too long (Gemini Flash has ~1M token context, but let's be safe/fast)
         if (transcriptText.length > 50000) {
