@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { TrendTopic, Suggestion, GeneratePayload, SaveEditsPayload, PostPayload } from './twitterTypes';
+import { getStratosToken, BASE_URL } from '../components/dashboard/api';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = BASE_URL;
 
 // In-memory mock database state
 let mockTopics: TrendTopic[] = [
@@ -103,6 +104,30 @@ const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 5000,
 });
+
+// Request interceptor to attach bearer token
+api.interceptors.request.use((config) => {
+  const token = getStratosToken();
+  if (token && token !== 'demo_token') {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
+
+// Response interceptor to handle 401 unauthorized
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('stratos-unauthorized'));
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const twitterApi = {
   // Test connection to FastAPI backend

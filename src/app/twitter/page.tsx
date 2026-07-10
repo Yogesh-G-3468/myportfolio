@@ -18,7 +18,14 @@ import {
   LogOut,
   Bell,
   Twitter,
-  Github
+  Github,
+  Activity,
+  User,
+  Lock,
+  AlertCircle,
+  Loader2,
+  ShieldCheck,
+  Zap
 } from 'lucide-react';
 
 import { twitterApi, setMockMode, getMockMode } from '../../lib/twitterApi';
@@ -27,6 +34,7 @@ import { TrendScouts } from '../../components/twitter/TrendScouts';
 import { ReviewQueue } from '../../components/twitter/ReviewQueue';
 import { Archive } from '../../components/twitter/Archive';
 import { PostedModal } from '../../components/twitter/PostedModal';
+import { getStratosToken, saveStratosAuth, clearStratosAuth, BASE_URL } from '../../components/dashboard/api';
 
 interface Toast {
   id: string;
@@ -51,10 +59,62 @@ export default function TwitterSystemPage() {
   const [selectedSuggestionId, setSelectedSuggestionId] = useState<number | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
+  // Auth State
+  const [mounted, setMounted] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const [username, setUsername] = useState("yogesh");
+  const [password, setPassword] = useState("stratos_pass");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // Get token and configure interceptor listener on mount
+  useEffect(() => {
+    setMounted(true);
+
+    const savedToken = getStratosToken();
+    const savedDemoMode = localStorage.getItem("stratos_demo_mode") === "true";
+    
+    if (savedToken) {
+      setToken(savedToken);
+      if (savedToken === "demo_token") {
+        setIsMockMode(true);
+        setMockMode(true);
+      }
+    } else if (savedDemoMode) {
+      setToken("demo_token");
+      setIsMockMode(true);
+      setMockMode(true);
+    } else {
+      clearStratosAuth();
+    }
+
+    // Interceptor broadcast listener
+    const handleUnauthorized = () => {
+      handleLogout();
+    };
+
+    window.addEventListener("stratos-unauthorized", handleUnauthorized);
+    return () => {
+      window.removeEventListener("stratos-unauthorized", handleUnauthorized);
+    };
+  }, []);
+
   // Initialize and check backend status
   useEffect(() => {
+    if (!token) return;
+
     const initApp = async () => {
       setLoading(true);
+
+      if (token === "demo_token") {
+        setBackendOnline(false);
+        setMockMode(true);
+        setIsMockMode(true);
+        await refreshData();
+        setLoading(false);
+        return;
+      }
+
       const isOnline = await twitterApi.checkBackend();
       setBackendOnline(isOnline);
       
@@ -74,7 +134,54 @@ export default function TwitterSystemPage() {
     };
 
     initApp();
-  }, []);
+  }, [token]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthError(null);
+
+    try {
+      const response = await fetch(`${BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ username, password })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Authentication rejected. Invalid credentials.");
+      }
+
+      const data = await response.json();
+      saveStratosAuth(data.access_token, data.expires_at);
+      setToken(data.access_token);
+      setIsMockMode(false);
+      setMockMode(false);
+      localStorage.setItem("stratos_demo_mode", "false");
+    } catch (err: any) {
+      setAuthError(err.message || "Something went wrong during authentication.");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    clearStratosAuth();
+    setToken(null);
+    setIsMockMode(true);
+    setMockMode(true);
+  };
+
+  const enableDemoMode = () => {
+    setIsMockMode(true);
+    setMockMode(true);
+    localStorage.setItem("stratos_demo_mode", "true");
+    setToken("demo_token");
+    setAuthError(null);
+  };
 
   // Fetch updated data from API layer
   const refreshData = async () => {
@@ -112,7 +219,7 @@ export default function TwitterSystemPage() {
     setMockMode(val);
     setIsMockMode(val);
     refreshData();
-    showToast('info', val ? 'Mock Mode activated' : 'Live API Mode activated (Target: http://localhost:8000)');
+    showToast('info', val ? 'Mock Mode activated' : `Live API Mode activated (Target: ${BASE_URL})`);
   };
 
   // Scan external trends
@@ -203,6 +310,125 @@ export default function TwitterSystemPage() {
     return suggestions.filter(s => s.status === status);
   };
 
+  if (!mounted) return null;
+
+  if (!token) {
+    return (
+      <div className="bg-[#020617] text-slate-100 min-h-screen relative flex flex-col font-sans selection:bg-cyan-500/30 selection:text-white">
+        {/* Premium background radial glowing spots */}
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-[150px] pointer-events-none z-0" />
+        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[150px] pointer-events-none z-0" />
+        <div className="absolute bottom-10 left-1/3 w-[500px] h-[500px] bg-rose-500/5 rounded-full blur-[180px] pointer-events-none z-0" />
+
+        <div className="flex-1 flex items-center justify-center p-4 relative z-10 min-h-screen">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="w-full max-w-md bg-slate-900/40 backdrop-blur-xl border border-slate-800/80 p-8 rounded-3xl shadow-2xl relative overflow-hidden"
+          >
+            {/* Top design accent */}
+            <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-500 to-transparent" />
+            
+            <div className="flex flex-col items-center mb-8">
+              <div className="w-12 h-12 bg-gradient-to-tr from-cyan-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20 mb-4">
+                <Twitter size={24} className="fill-current text-white" />
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight text-white">X-SCOUT AI TERMINAL</h1>
+              <p className="text-slate-400 text-xs mt-1 text-center">
+                Secured Tech Trend & Automated Content Scout
+              </p>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  Username
+                </label>
+                <div className="relative">
+                  <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="Enter terminal operator ID"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  Access Key
+                </label>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all text-sm"
+                  />
+                </div>
+              </div>
+
+              {authError && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  className="flex items-start gap-2 text-rose-500 text-xs bg-rose-500/10 p-3 rounded-lg border border-rose-500/20"
+                >
+                  <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                  <span>{authError}</span>
+                </motion.div>
+              )}
+
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="w-full py-3 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 active:scale-[0.98] transition-all rounded-xl font-semibold text-sm tracking-wide text-white shadow-lg shadow-indigo-500/15 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                {authLoading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Initializing Secure Handshake...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck size={16} />
+                    Secure Login
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 flex flex-col gap-3">
+              <div className="relative flex py-2 items-center">
+                <div className="flex-grow border-t border-slate-800/85"></div>
+                <span className="flex-shrink mx-4 text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                  Quick Sandbox Access
+                </span>
+                <div className="flex-grow border-t border-slate-800/85"></div>
+              </div>
+
+              <button
+                type="button"
+                onClick={enableDemoMode}
+                className="w-full py-3 bg-slate-900 border border-slate-800 hover:bg-slate-800/60 hover:border-slate-700 active:scale-[0.98] transition-all rounded-xl font-semibold text-sm text-cyan-400 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Zap size={15} />
+                Launch Sandbox (Mock Mode)
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0B0F19] text-[#e8e6e3] font-sans selection:bg-cyan-500 selection:text-black">
       {/* Top Header navbar */}
@@ -247,6 +473,15 @@ export default function TwitterSystemPage() {
               {isMockMode ? <ToggleRight size={28} /> : <ToggleLeft size={28} className="text-gray-600" />}
             </button>
           </div>
+
+          {/* Logout button */}
+          <button
+            onClick={handleLogout}
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl text-rose-400 text-xs font-semibold transition-colors cursor-pointer"
+          >
+            <LogOut size={13} />
+            <span>Logout</span>
+          </button>
         </div>
       </header>
 
