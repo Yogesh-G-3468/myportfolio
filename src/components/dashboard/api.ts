@@ -38,7 +38,9 @@ export const clearStratosAuth = () => {
 // Custom fetch wrapper mimicking an HTTP interceptor
 export const stratosFetch = async (endpoint: string, options: RequestInit = {}): Promise<Response> => {
   const token = getStratosToken();
-  const url = endpoint.startsWith("http") ? endpoint : `${BASE_URL}${endpoint}`;
+  const cleanBase = BASE_URL.endsWith("/") ? BASE_URL.slice(0, -1) : BASE_URL;
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const url = endpoint.startsWith("http") ? endpoint : `${cleanBase}${cleanEndpoint}`;
   
   const headers = {
     "Content-Type": "application/json",
@@ -63,3 +65,62 @@ export const stratosFetch = async (endpoint: string, options: RequestInit = {}):
     throw error;
   }
 };
+
+export interface NotionItem {
+  id: string;
+  title: string;
+}
+
+export const getNotionDatabases = async (notionApiKey?: string): Promise<NotionItem[]> => {
+  let endpoint = "/summarize/notion/databases";
+  if (notionApiKey?.trim()) {
+    const params = new URLSearchParams();
+    params.append("notion_api_key", notionApiKey.trim());
+    endpoint += `?${params.toString()}`;
+  }
+  const response = await stratosFetch(endpoint);
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.detail || "Failed to fetch Notion databases");
+  }
+  return response.json();
+};
+
+export const getNotionPages = async (notionApiKey?: string): Promise<NotionItem[]> => {
+  let endpoint = "/summarize/notion/pages";
+  if (notionApiKey?.trim()) {
+    const params = new URLSearchParams();
+    params.append("notion_api_key", notionApiKey.trim());
+    endpoint += `?${params.toString()}`;
+  }
+  const response = await stratosFetch(endpoint);
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.detail || "Failed to fetch Notion pages");
+  }
+  return response.json();
+};
+
+export const createNotionDatabase = async (
+  parentPageId: string,
+  title: string,
+  notionApiKey?: string
+): Promise<NotionItem> => {
+  const body: Record<string, string> = {
+    parent_page_id: parentPageId,
+    title: title,
+  };
+  if (notionApiKey?.trim()) {
+    body.notion_api_key = notionApiKey.trim();
+  }
+  const response = await stratosFetch("/summarize/notion/databases", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.detail || "Failed to create Notion database");
+  }
+  return response.json();
+};
+

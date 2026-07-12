@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Youtube,
@@ -13,15 +13,35 @@ import {
   Copy,
   Check,
   Sparkles,
-  FileText
+  FileText,
+  RefreshCw,
+  Plus,
+  Database
 } from "lucide-react";
-import { stratosFetch } from "./api";
+import {
+  stratosFetch,
+  getNotionDatabases,
+  getNotionPages,
+  createNotionDatabase,
+  NotionItem
+} from "./api";
 import { SummarizePayload, SummarizeResponse } from "./types";
 
 interface YoutubeSummarizerProps {
   isDemoMode: boolean;
   setToastMessage: (msg: { text: string; type: "success" | "error" } | null) => void;
 }
+
+const MOCK_DATABASES = [
+  { id: "db-1", title: "My YouTube Summaries" },
+  { id: "db-2", title: "Learning & Development Notes" },
+];
+
+const MOCK_PAGES = [
+  { id: "page-1", title: "Personal Workspace" },
+  { id: "page-2", title: "Projects & Tasks" },
+  { id: "page-3", title: "Study Notes" },
+];
 
 export const YoutubeSummarizer: React.FC<YoutubeSummarizerProps> = ({
   isDemoMode,
@@ -38,11 +58,140 @@ export const YoutubeSummarizer: React.FC<YoutubeSummarizerProps> = ({
   const [geminiApiKey, setGeminiApiKey] = useState("");
   const [model, setModel] = useState("");
 
+  // Notion Database & Page State
+  const [databases, setDatabases] = useState<NotionItem[]>([]);
+  const [pages, setPages] = useState<NotionItem[]>([]);
+  const [selectedDbId, setSelectedDbId] = useState("");
+  const [selectedPageId, setSelectedPageId] = useState("");
+  const [newDbTitle, setNewDbTitle] = useState("");
+
+  const [dbsLoading, setDbsLoading] = useState(false);
+  const [pagesLoading, setPagesLoading] = useState(false);
+  const [createDbLoading, setCreateDbLoading] = useState(false);
+  const [showCreateDb, setShowCreateDb] = useState(false);
+
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [response, setResponse] = useState<SummarizeResponse | null>(null);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+  const fetchDatabases = async (apiKeyOverride?: string) => {
+    if (isDemoMode) {
+      setDbsLoading(true);
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      setDatabases([...MOCK_DATABASES]);
+      if (MOCK_DATABASES.length > 0 && !selectedDbId) {
+        setSelectedDbId(MOCK_DATABASES[0].id);
+      }
+      setDbsLoading(false);
+      return;
+    }
+
+    setDbsLoading(true);
+    try {
+      const dbs = await getNotionDatabases(apiKeyOverride || notionApiKey);
+      setDatabases(dbs);
+      if (dbs.length > 0) {
+        setSelectedDbId((prev) => {
+          const exists = dbs.some((db) => db.id === prev);
+          return exists ? prev : dbs[0].id;
+        });
+      } else {
+        setSelectedDbId("");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setToastMessage({ text: err.message || "Failed to load Notion databases.", type: "error" });
+    } finally {
+      setDbsLoading(false);
+    }
+  };
+
+  const fetchPages = async (apiKeyOverride?: string) => {
+    if (isDemoMode) {
+      setPagesLoading(true);
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      setPages([...MOCK_PAGES]);
+      if (MOCK_PAGES.length > 0 && !selectedPageId) {
+        setSelectedPageId(MOCK_PAGES[0].id);
+      }
+      setPagesLoading(false);
+      return;
+    }
+
+    setPagesLoading(true);
+    try {
+      const pgs = await getNotionPages(apiKeyOverride || notionApiKey);
+      setPages(pgs);
+      if (pgs.length > 0) {
+        setSelectedPageId((prev) => {
+          const exists = pgs.some((p) => p.id === prev);
+          return exists ? prev : pgs[0].id;
+        });
+      } else {
+        setSelectedPageId("");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setToastMessage({ text: err.message || "Failed to load Notion pages.", type: "error" });
+    } finally {
+      setPagesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDatabases();
+    fetchPages();
+  }, [isDemoMode]);
+
+  const handleRefreshDbs = () => {
+    fetchDatabases(notionApiKey);
+    fetchPages(notionApiKey);
+  };
+
+  const handleCreateDatabase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPageId) {
+      setToastMessage({ text: "Please select a parent page.", type: "error" });
+      return;
+    }
+    if (!newDbTitle.trim()) {
+      setToastMessage({ text: "Please enter a database title.", type: "error" });
+      return;
+    }
+
+    setCreateDbLoading(true);
+    try {
+      if (isDemoMode) {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        const newDb = {
+          id: `db-created-${Date.now()}`,
+          title: newDbTitle.trim(),
+        };
+        MOCK_DATABASES.unshift(newDb);
+        await fetchDatabases();
+        setSelectedDbId(newDb.id);
+        setNewDbTitle("");
+        setShowCreateDb(false);
+        setToastMessage({ text: "Notion database created successfully (Sandbox Mode)!", type: "success" });
+      } else {
+        const newDb = await createNotionDatabase(selectedPageId, newDbTitle.trim(), notionApiKey);
+        setToastMessage({ text: "Notion database created successfully!", type: "success" });
+        setNewDbTitle("");
+        setShowCreateDb(false);
+        setDatabases((prev) => [newDb, ...prev]);
+        setSelectedDbId(newDb.id);
+        await fetchDatabases();
+        setSelectedDbId(newDb.id);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setToastMessage({ text: err.message || "Failed to create database.", type: "error" });
+    } finally {
+      setCreateDbLoading(false);
+    }
+  };
 
   const getNotionUrl = (pageId: string) => {
     // Remove hyphens for standard Notion URL format
@@ -77,7 +226,7 @@ export const YoutubeSummarizer: React.FC<YoutubeSummarizerProps> = ({
     };
 
     if (notionApiKey.trim()) payload.notion_api_key = notionApiKey.trim();
-    if (notionDatabaseId.trim()) payload.notion_database_id = notionDatabaseId.trim();
+    if (selectedDbId) payload.notion_database_id = selectedDbId;
     if (geminiApiKey.trim()) payload.gemini_api_key = geminiApiKey.trim();
     if (model.trim()) payload.model = model.trim();
 
@@ -161,6 +310,140 @@ export const YoutubeSummarizer: React.FC<YoutubeSummarizerProps> = ({
               onChange={(e) => setYoutubeUrl(e.target.value)}
               className="w-full px-3 py-2 bg-slate-950/80 border border-slate-800 rounded-lg text-slate-100 placeholder-slate-650 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all text-xs"
             />
+          </div>
+
+          {/* Target Notion Database Selector */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <Database size={12} className="text-cyan-400" />
+              Target Notion Database
+            </label>
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <select
+                  value={selectedDbId}
+                  onChange={(e) => setSelectedDbId(e.target.value)}
+                  disabled={dbsLoading}
+                  className="w-full pl-3 pr-8 py-2 bg-slate-950/80 border border-slate-800 rounded-lg text-slate-100 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all text-xs appearance-none cursor-pointer disabled:opacity-50"
+                >
+                  {dbsLoading ? (
+                    <option value="" disabled>Loading databases...</option>
+                  ) : databases.length === 0 ? (
+                    <option value="" disabled>No databases found</option>
+                  ) : (
+                    databases.map((db) => (
+                      <option key={db.id} value={db.id} className="bg-slate-950 text-slate-100">
+                        {db.title || `Untitled (${db.id.substring(0, 8)}...)`}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                  <ChevronDown size={14} />
+                </div>
+              </div>
+              
+              <button
+                type="button"
+                onClick={handleRefreshDbs}
+                disabled={dbsLoading}
+                className="p-2 bg-slate-950/80 border border-slate-800 rounded-lg text-slate-400 hover:text-cyan-400 hover:border-cyan-500 transition-all disabled:opacity-50 h-[34px] w-[34px] flex items-center justify-center cursor-pointer"
+                title="Refresh Databases"
+              >
+                <RefreshCw size={14} className={dbsLoading ? "animate-spin text-cyan-400" : ""} />
+              </button>
+            </div>
+          </div>
+
+          {/* Collapsible Create New Notion Database */}
+          <div className="border border-slate-800/60 rounded-xl overflow-hidden bg-slate-950/20">
+            <button
+              type="button"
+              onClick={() => setShowCreateDb(!showCreateDb)}
+              className="w-full px-3 py-2 flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-900/50 transition-colors"
+            >
+              <span className="flex items-center gap-1.5">
+                <Plus size={12} className="text-cyan-400" />
+                Create New Notion Database
+              </span>
+              {showCreateDb ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            </button>
+
+            <AnimatePresence>
+              {showCreateDb && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="px-3 pb-3 border-t border-slate-850/50 space-y-3 pt-3 overflow-hidden text-xs"
+                >
+                  {/* Parent Page Dropdown */}
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                      Parent Page
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={selectedPageId}
+                        onChange={(e) => setSelectedPageId(e.target.value)}
+                        disabled={pagesLoading}
+                        className="w-full pl-2 pr-6 py-1.5 bg-slate-950 border border-slate-800 rounded-md text-slate-200 focus:outline-none focus:border-cyan-550 transition-all text-xs appearance-none cursor-pointer disabled:opacity-50"
+                      >
+                        {pagesLoading ? (
+                          <option value="" disabled>Loading parent pages...</option>
+                        ) : pages.length === 0 ? (
+                          <option value="" disabled>No parent pages found</option>
+                        ) : (
+                          pages.map((p) => (
+                            <option key={p.id} value={p.id} className="bg-slate-950 text-slate-200">
+                              {p.title || `Untitled (${p.id.substring(0, 8)}...)`}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                        <ChevronDown size={12} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* New Database Title */}
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                      New Database Title
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. My Custom Database"
+                      value={newDbTitle}
+                      onChange={(e) => setNewDbTitle(e.target.value)}
+                      className="w-full px-2 py-1.5 bg-slate-950 border border-slate-800 rounded-md text-slate-200 placeholder-slate-650 focus:outline-none focus:border-cyan-550 transition-all text-xs"
+                    />
+                  </div>
+
+                  {/* Create Database Button */}
+                  <button
+                    type="button"
+                    onClick={handleCreateDatabase}
+                    disabled={createDbLoading || pagesLoading || !newDbTitle.trim()}
+                    className="w-full py-1.5 bg-cyan-600/80 hover:bg-cyan-500 active:scale-[0.98] transition-all rounded-md font-bold text-[10px] uppercase tracking-wider text-white flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {createDbLoading ? (
+                      <>
+                        <Loader2 size={12} className="animate-spin" />
+                        Creating Database...
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={12} />
+                        Create Database
+                      </>
+                    )}
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Run In Background Checkbox */}

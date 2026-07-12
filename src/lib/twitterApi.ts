@@ -12,7 +12,8 @@ let mockTopics: TrendTopic[] = [
     relevance_score: 9,
     why_trending: 'React 19 is now stable. Developers are debating forwardRef deprecation and automated memoization.',
     content_angle: 'Actionable code comparison of React 19 direct ref props vs the deprecated forwardRef API.',
-    status: 'scanned'
+    status: 'scanned',
+    source_urls: ['https://github.com/facebook/react/releases', 'https://dev.to/react/react-19-stable']
   },
   {
     id: 2,
@@ -20,7 +21,8 @@ let mockTopics: TrendTopic[] = [
     relevance_score: 10,
     why_trending: 'Vercel released AI SDK v4 with native model-routing and advanced streaming UI components.',
     content_angle: 'Showcase a 10-line helper function that dynamically switches between OpenAI and Gemini based on prompt complexity.',
-    status: 'scanned'
+    status: 'scanned',
+    source_urls: ['https://github.com/vercel/ai', 'https://news.ycombinator.com/item?id=39129031']
   },
   {
     id: 3,
@@ -28,7 +30,8 @@ let mockTopics: TrendTopic[] = [
     relevance_score: 8,
     why_trending: 'Debates on Twitter/X about whether standalone vector databases are obsolete for mid-sized apps.',
     content_angle: 'Pragmatic take advising developers to start with Postgres pgvector and migrate only above 10M vectors.',
-    status: 'scanned'
+    status: 'scanned',
+    source_urls: ['https://github.com/pgvector/pgvector', 'https://lobste.rs/s/vector_dbs']
   },
   {
     id: 4,
@@ -36,7 +39,8 @@ let mockTopics: TrendTopic[] = [
     relevance_score: 7,
     why_trending: 'New browser benchmarks show WebAssembly-loaded models running llama-3-8b at 35 tokens/sec.',
     content_angle: 'Highlighting browser-native AI possibilities and offline privacy advantages.',
-    status: 'scanned'
+    status: 'scanned',
+    source_urls: ['https://dev.to/wasm/local-llms', 'https://news.ycombinator.com/item?id=38910481']
   }
 ];
 
@@ -99,10 +103,41 @@ export const setMockMode = (enabled: boolean) => {
 
 export const getMockMode = () => mockModeEnabled;
 
-// Axios instance with timeout
+// Helper to map backend's Suggestion Response structure to frontend's expected Suggestion interface
+function mapBackendSuggestion(data: any): Suggestion {
+  if (!data) return data;
+  
+  const mapped = { ...data };
+  
+  // Backend returns quality_review, frontend expects quality_gate
+  if (mapped.quality_review && !mapped.quality_gate) {
+    mapped.quality_gate = {
+      approved: mapped.quality_review.approved,
+      warnings: mapped.quality_review.issues || [],
+      suggested_edit: mapped.quality_review.suggested_edit || null,
+      checks: (mapped.quality_review.checks || []).map((c: any) => ({
+        name: c.name,
+        passed: c.passed,
+        message: c.message
+      }))
+    };
+  }
+  
+  if (!mapped.quality_gate) {
+    mapped.quality_gate = {
+      approved: true,
+      warnings: [],
+      suggested_edit: null,
+      checks: []
+    };
+  }
+  
+  return mapped as Suggestion;
+}
+
+// Axios instance with timeout removed
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 5000,
 });
 
 // Request interceptor to attach bearer token
@@ -172,14 +207,47 @@ export const twitterApi = {
     return response.data;
   },
 
+  // Deep Trend Scout Scanning
+  async scanDeepTrends(): Promise<TrendTopic[]> {
+    if (mockModeEnabled) {
+      await new Promise((resolve) => setTimeout(resolve, 2000)); // simulate delay
+      const currentIds = mockTopics.map(t => t.id);
+      const newTopics: TrendTopic[] = [
+        {
+          id: Math.max(...currentIds, 0) + 1,
+          name: 'FlashAttention-3: Ultra-Fast Attention for H100 GPUs',
+          relevance_score: 10,
+          why_trending: 'Researchers released FlashAttention-3, written in CUDA, achieving 75% utilization on NVIDIA H100 GPUs.',
+          content_angle: 'Explain the GPU memory hierarchy and how FlashAttention-3 overlaps gemm and softmax operations.',
+          status: 'scanned',
+          source_urls: ['https://arxiv.org/abs/2407.00215', 'https://github.com/Dao-AILab/flash-attention']
+        },
+        {
+          id: Math.max(...currentIds, 0) + 2,
+          name: 'Mojo Programming Language Open-Sourced compiler core',
+          relevance_score: 9,
+          why_trending: 'Modular open-sourced Mojo\'s compiler front-end, enabling developers to build custom dialects.',
+          content_angle: 'Show a comparison of custom MLIR dialect compilation speeds in C++ vs Mojo.',
+          status: 'scanned',
+          source_urls: ['https://github.com/modularml/mojo', 'https://news.ycombinator.com/item?id=40019283']
+        }
+      ];
+      mockTopics = [...newTopics, ...mockTopics];
+      return mockTopics;
+    }
+
+    const response = await api.post<TrendTopic[]>('/trends/scan/deep');
+    return response.data;
+  },
+
   // Get active scanned topics
   async getTopics(): Promise<TrendTopic[]> {
     if (mockModeEnabled) {
       return mockTopics;
     }
-    // Assume GET /trends is available, otherwise fall back to scanning/local
+    // Correct endpoint is /topics
     try {
-      const response = await api.get<TrendTopic[]>('/trends');
+      const response = await api.get<TrendTopic[]>('/topics');
       return response.data;
     } catch {
       return mockTopics;
@@ -234,21 +302,55 @@ export const twitterApi = {
     }
 
     const response = await api.post<Suggestion>('/content/generate', { topic_id: topicId });
-    return response.data;
+    return mapBackendSuggestion(response.data);
+  },
+
+  // Draft custom content from URL
+  async draftTweet(url: string): Promise<Suggestion> {
+    if (mockModeEnabled) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const newSuggestionId = Math.max(...mockSuggestions.map((s) => s.id), 0) + 1;
+      const isYoutube = url.includes('youtube.com') || url.includes('youtu.be');
+      const title = isYoutube ? 'YouTube Tech Masterclass' : 'Engineering Insights';
+      const newSuggestion: Suggestion = {
+        id: newSuggestionId,
+        topic_id: 0,
+        format: 'single_tweet',
+        status: 'suggested',
+        reasoning: `Drafted from url: ${url}`,
+        tweets: [
+          `Just checked out this amazing ${isYoutube ? 'video' : 'article'}: ${title}! Absolute goldmine of information. 🚀\n\nCheck it out here: ${url}`
+        ],
+        quality_gate: {
+          approved: true,
+          warnings: [],
+          suggested_edit: null,
+          checks: [
+            { name: 'Character Limit', passed: true, message: 'All tweets are within 280 characters.' }
+          ]
+        },
+        created_at: new Date().toISOString()
+      };
+      mockSuggestions = [newSuggestion, ...mockSuggestions];
+      return newSuggestion;
+    }
+
+    const response = await api.post<Suggestion>('/content/draft-tweet', { url });
+    return mapBackendSuggestion(response.data);
   },
 
   // Suggestions Review Queue & Archives
   async getSuggestions(status: 'suggested' | 'posted' | 'rejected', limit = 20, offset = 0): Promise<Suggestion[]> {
     if (mockModeEnabled) {
       return mockSuggestions
-        .filter((s) => s.status === status)
-        .slice(offset, offset + limit);
+          .filter((s) => s.status === status)
+          .slice(offset, offset + limit);
     }
 
     const response = await api.get<Suggestion[]>('/content/suggestions', {
       params: { status, limit, offset }
     });
-    return response.data;
+    return response.data.map(mapBackendSuggestion);
   },
 
   // Edit / Patch suggestion
@@ -281,7 +383,7 @@ export const twitterApi = {
     }
 
     const response = await api.patch<Suggestion>(`/content/suggestions/${id}`, payload);
-    return response.data;
+    return mapBackendSuggestion(response.data);
   },
 
   // Soft delete / Reject suggestion

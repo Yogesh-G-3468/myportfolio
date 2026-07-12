@@ -228,8 +228,23 @@ export default function TwitterSystemPage() {
       const updatedTopics = await twitterApi.scanTrends();
       setTopics(updatedTopics);
       showToast('success', 'External scanning completed! Hot topics updated.');
-    } catch (err) {
-      showToast('error', 'Error scanning trends. Try Mock Mode.');
+    } catch (err: any) {
+      console.error("Trends scan error details:", err);
+      const errMsg = err.response?.data?.detail || err.message || 'Unknown error';
+      showToast('error', `Error scanning trends: ${errMsg}`);
+    }
+  };
+
+  // Scan deep tech trends
+  const handleScanDeepTrends = async () => {
+    try {
+      const updatedTopics = await twitterApi.scanDeepTrends();
+      setTopics(updatedTopics);
+      showToast('success', 'Deep Tech scanning completed! Research & systems topics updated.');
+    } catch (err: any) {
+      console.error("Deep trends scan error details:", err);
+      const errMsg = err.response?.data?.detail || err.message || 'Unknown error';
+      showToast('error', `Error scanning deep tech trends: ${errMsg}`);
     }
   };
 
@@ -245,8 +260,27 @@ export default function TwitterSystemPage() {
       setSuggestions(prev => [result, ...prev]);
 
       showToast('success', `Gemini drafted a new ${result.format === 'thread' ? 'thread' : 'tweet'}! Check Review Queue.`);
-    } catch (err) {
-      showToast('error', 'Generation failed. Make sure server is reachable.');
+    } catch (err: any) {
+      console.error("Draft generation error details:", err);
+      const errMsg = err.response?.data?.detail || err.message || 'Unknown error';
+      showToast('error', `Generation failed: ${errMsg}`);
+    }
+  };
+
+  // Draft suggestion from custom URL
+  const handleDraftFromUrl = async (url: string) => {
+    try {
+      const result = await twitterApi.draftTweet(url);
+      
+      // Add suggestion to list
+      setSuggestions(prev => [result, ...prev]);
+
+      showToast('success', `AI drafted a suggestion from your link! Check Review Queue.`);
+    } catch (err: any) {
+      console.error("Draft from URL error details:", err);
+      const errMsg = err.response?.data?.detail || err.message || 'Unknown error';
+      showToast('error', `Drafting failed: ${errMsg}`);
+      throw err;
     }
   };
 
@@ -585,7 +619,9 @@ export default function TwitterSystemPage() {
                     <TrendScouts
                       topics={topics}
                       onScan={handleScanTrends}
+                      onScanDeep={handleScanDeepTrends}
                       onGenerate={handleGenerateDraft}
+                      onDraftFromUrl={handleDraftFromUrl}
                     />
                   )}
 

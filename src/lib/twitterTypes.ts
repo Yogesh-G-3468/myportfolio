@@ -5,6 +5,7 @@ export interface TrendTopic {
   why_trending: string;
   content_angle: string;
   status: 'scanned' | 'generating' | 'drafted';
+  source_urls?: string[];
 }
 
 export interface QualityCheck {

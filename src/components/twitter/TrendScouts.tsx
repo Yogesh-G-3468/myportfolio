@@ -8,12 +8,19 @@ import { TrendTopic } from '../../lib/twitterTypes';
 interface TrendScoutsProps {
   topics: TrendTopic[];
   onScan: () => Promise<void>;
+  onScanDeep: () => Promise<void>;
   onGenerate: (topicId: number) => Promise<void>;
+  onDraftFromUrl: (url: string) => Promise<void>;
 }
 
-export const TrendScouts: React.FC<TrendScoutsProps> = ({ topics, onScan, onGenerate }) => {
+export const TrendScouts: React.FC<TrendScoutsProps> = ({ topics, onScan, onScanDeep, onGenerate, onDraftFromUrl }) => {
   const [scanning, setScanning] = useState(false);
+  const [scanningDeep, setScanningDeep] = useState(false);
   const [generatingId, setGeneratingId] = useState<number | null>(null);
+  
+  // Custom URL draft state
+  const [draftUrl, setDraftUrl] = useState('');
+  const [isDrafting, setIsDrafting] = useState(false);
 
   const handleScan = async () => {
     setScanning(true);
@@ -26,6 +33,17 @@ export const TrendScouts: React.FC<TrendScoutsProps> = ({ topics, onScan, onGene
     }
   };
 
+  const handleScanDeep = async () => {
+    setScanningDeep(true);
+    try {
+      await onScanDeep();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setScanningDeep(false);
+    }
+  };
+
   const handleGenerate = async (topicId: number) => {
     setGeneratingId(topicId);
     try {
@@ -34,6 +52,20 @@ export const TrendScouts: React.FC<TrendScoutsProps> = ({ topics, onScan, onGene
       console.error(err);
     } finally {
       setGeneratingId(null);
+    }
+  };
+
+  const handleDraftSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!draftUrl.trim()) return;
+    setIsDrafting(true);
+    try {
+      await onDraftFromUrl(draftUrl.trim());
+      setDraftUrl('');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsDrafting(false);
     }
   };
 
@@ -58,14 +90,63 @@ export const TrendScouts: React.FC<TrendScoutsProps> = ({ topics, onScan, onGene
           </p>
         </div>
 
-        <button
-          onClick={handleScan}
-          disabled={scanning}
-          className="flex items-center justify-center space-x-2 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-semibold px-6 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(6,182,212,0.25)] hover:shadow-[0_0_25px_rgba(6,182,212,0.4)] cursor-pointer"
-        >
-          <RefreshCw size={18} className={scanning ? 'animate-spin' : ''} />
-          <span>{scanning ? 'Scanning Tech Trends...' : 'Scan External Trends'}</span>
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <button
+            onClick={handleScan}
+            disabled={scanning || scanningDeep}
+            className="flex items-center justify-center space-x-2 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-semibold px-5 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(6,182,212,0.15)] cursor-pointer text-xs sm:text-sm"
+          >
+            <RefreshCw size={16} className={scanning ? 'animate-spin' : ''} />
+            <span>{scanning ? 'Scanning General...' : 'Scan General Trends'}</span>
+          </button>
+          
+          <button
+            onClick={handleScanDeep}
+            disabled={scanning || scanningDeep}
+            className="flex items-center justify-center space-x-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold px-5 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(139,92,246,0.25)] hover:shadow-[0_0_25px_rgba(139,92,246,0.4)] cursor-pointer text-xs sm:text-sm"
+          >
+            <RefreshCw size={16} className={scanningDeep ? 'animate-spin' : ''} />
+            <span>{scanningDeep ? 'Scanning Deep Tech...' : 'Scan Deep Tech'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Custom URL Drafting Card */}
+      <div className="bg-[#15202B]/30 border border-white/5 rounded-2xl p-6">
+        <h3 className="text-md font-bold text-white flex items-center space-x-2 mb-2">
+          <MessageSquarePlus className="text-cyan-400" size={18} />
+          <span>Draft Tweet from Custom URL</span>
+        </h3>
+        <p className="text-xs text-gray-400 mb-4">
+          Paste any YouTube video or article link to automatically extract transcripts/content and draft a creator-style tweet or thread.
+        </p>
+        <form onSubmit={handleDraftSubmit} className="flex flex-col sm:flex-row gap-3">
+          <input
+            type="url"
+            required
+            placeholder="https://www.youtube.com/watch?v=... or https://techcrunch.com/..."
+            value={draftUrl}
+            onChange={(e) => setDraftUrl(e.target.value)}
+            className="flex-1 bg-[#0B0F19]/60 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+          />
+          <button
+            type="submit"
+            disabled={isDrafting}
+            className="flex items-center justify-center space-x-2 bg-white/5 hover:bg-white/10 text-white border border-white/10 font-semibold px-6 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            {isDrafting ? (
+              <>
+                <RefreshCw size={16} className="animate-spin text-cyan-400" />
+                <span>Drafting...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles size={16} className="text-cyan-400" />
+                <span>Draft Tweet</span>
+              </>
+            )}
+          </button>
+        </form>
       </div>
 
       {/* Loading state for entire panel when topics are empty */}
@@ -130,7 +211,7 @@ export const TrendScouts: React.FC<TrendScoutsProps> = ({ topics, onScan, onGene
                   </div>
 
                   {/* Content Angle */}
-                  <div className="mb-5">
+                  <div className="mb-4">
                     <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">
                       Proposed Angle
                     </span>
@@ -138,6 +219,54 @@ export const TrendScouts: React.FC<TrendScoutsProps> = ({ topics, onScan, onGene
                       {topic.content_angle}
                     </p>
                   </div>
+
+                  {/* Sources */}
+                  {topic.source_urls && topic.source_urls.length > 0 && (
+                    <div className="mb-5">
+                      <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
+                        Sources
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {topic.source_urls.map((url, urlIdx) => {
+                          let label = "🔗 Reference Link";
+                          if (url.includes("github.com")) {
+                            label = "🔗 GitHub Repository";
+                          } else if (url.includes("arxiv.org")) {
+                            label = "📄 ArXiv Research Paper";
+                          } else if (url.includes("ycombinator.com")) {
+                            label = "🔗 Hacker News Thread";
+                          } else if (url.includes("dev.to")) {
+                            label = "🔗 Dev.to Article";
+                          } else if (url.includes("techcrunch.com")) {
+                            label = "🔗 TechCrunch Article";
+                          } else if (url.includes("theverge.com")) {
+                            label = "🔗 The Verge Article";
+                          } else if (url.includes("jeffgeerling.com")) {
+                            label = "🔗 Jeff Geerling Blog";
+                          } else if (url.includes("lwn.net")) {
+                            label = "🔗 LWN Article";
+                          } else if (url.includes("economist.com")) {
+                            label = "🔗 The Economist Article";
+                          } else if (url.includes("gingerbill.org")) {
+                            label = "🔗 Ginger Bill Article";
+                          } else if (url.includes("openai.com")) {
+                            label = "🔗 OpenAI Reference";
+                          }
+                          return (
+                            <a
+                              key={urlIdx}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] font-semibold px-2.5 py-1 rounded-md bg-cyan-950/40 border border-cyan-800/30 text-cyan-400 hover:bg-cyan-900/40 hover:text-cyan-300 transition-all flex items-center gap-1"
+                            >
+                              {label}
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Card CTA Actions */}
