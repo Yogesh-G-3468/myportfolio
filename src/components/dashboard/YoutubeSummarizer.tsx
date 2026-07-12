@@ -54,7 +54,6 @@ export const YoutubeSummarizer: React.FC<YoutubeSummarizerProps> = ({
   // Advanced options accordion
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [notionApiKey, setNotionApiKey] = useState("");
-  const [notionDatabaseId, setNotionDatabaseId] = useState("");
   const [geminiApiKey, setGeminiApiKey] = useState("");
   const [model, setModel] = useState("");
 
@@ -152,10 +151,6 @@ export const YoutubeSummarizer: React.FC<YoutubeSummarizerProps> = ({
 
   const handleCreateDatabase = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPageId) {
-      setToastMessage({ text: "Please select a parent page.", type: "error" });
-      return;
-    }
     if (!newDbTitle.trim()) {
       setToastMessage({ text: "Please enter a database title.", type: "error" });
       return;
@@ -176,7 +171,8 @@ export const YoutubeSummarizer: React.FC<YoutubeSummarizerProps> = ({
         setShowCreateDb(false);
         setToastMessage({ text: "Notion database created successfully (Sandbox Mode)!", type: "success" });
       } else {
-        const newDb = await createNotionDatabase(selectedPageId, newDbTitle.trim(), notionApiKey);
+        const parentId = selectedPageId || undefined;
+        const newDb = await createNotionDatabase(newDbTitle.trim(), parentId, notionApiKey);
         setToastMessage({ text: "Notion database created successfully!", type: "success" });
         setNewDbTitle("");
         setShowCreateDb(false);
@@ -322,21 +318,35 @@ export const YoutubeSummarizer: React.FC<YoutubeSummarizerProps> = ({
               <div className="relative flex-1">
                 <select
                   value={selectedDbId}
-                  onChange={(e) => setSelectedDbId(e.target.value)}
+                  onChange={(e) => {
+                    if (e.target.value === "__create_new__") {
+                      setShowCreateDb(true);
+                      return;
+                    }
+                    setSelectedDbId(e.target.value);
+                  }}
                   disabled={dbsLoading}
                   className="w-full pl-3 pr-8 py-2 bg-slate-950/80 border border-slate-800 rounded-lg text-slate-100 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all text-xs appearance-none cursor-pointer disabled:opacity-50"
                 >
                   {dbsLoading ? (
                     <option value="" disabled>Loading databases...</option>
                   ) : databases.length === 0 ? (
-                    <option value="" disabled>No databases found</option>
+                    <option value="" disabled>No databases found. Create one to get started.</option>
                   ) : (
-                    databases.map((db) => (
-                      <option key={db.id} value={db.id} className="bg-slate-950 text-slate-100">
-                        {db.title || `Untitled (${db.id.substring(0, 8)}...)`}
+                    <>
+                      <option value="" disabled className="bg-slate-950 text-slate-500">
+                        Select a database...
                       </option>
-                    ))
+                      {databases.map((db) => (
+                        <option key={db.id} value={db.id} className="bg-slate-950 text-slate-100">
+                          {db.title || `Untitled (${db.id.substring(0, 8)}...)`}
+                        </option>
+                      ))}
+                    </>
                   )}
+                  <option value="__create_new__" className="bg-slate-950 text-cyan-400">
+                    + Create New Database
+                  </option>
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
                   <ChevronDown size={14} />
@@ -353,6 +363,27 @@ export const YoutubeSummarizer: React.FC<YoutubeSummarizerProps> = ({
                 <RefreshCw size={14} className={dbsLoading ? "animate-spin text-cyan-400" : ""} />
               </button>
             </div>
+
+            {/* Empty state CTA when no databases exist */}
+            {!dbsLoading && databases.length === 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-2 p-2.5 rounded-lg bg-cyan-500/5 border border-cyan-500/15 flex items-center justify-between"
+              >
+                <span className="text-[10px] text-slate-400 font-medium">
+                  No databases found. Create one to get started.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateDb(true)}
+                  className="px-2.5 py-1 bg-cyan-600/80 hover:bg-cyan-500 transition-all rounded-md font-bold text-[9px] uppercase tracking-wider text-white flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus size={10} />
+                  Create
+                </button>
+              </motion.div>
+            )}
           </div>
 
           {/* Collapsible Create New Notion Database */}
@@ -378,10 +409,10 @@ export const YoutubeSummarizer: React.FC<YoutubeSummarizerProps> = ({
                   transition={{ duration: 0.2 }}
                   className="px-3 pb-3 border-t border-slate-850/50 space-y-3 pt-3 overflow-hidden text-xs"
                 >
-                  {/* Parent Page Dropdown */}
+                  {/* Parent Page Dropdown (optional — omit for workspace root) */}
                   <div>
                     <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                      Parent Page
+                      Parent Page <span className="text-slate-600 normal-case">(optional — defaults to workspace root)</span>
                     </label>
                     <div className="relative">
                       <select
@@ -390,10 +421,11 @@ export const YoutubeSummarizer: React.FC<YoutubeSummarizerProps> = ({
                         disabled={pagesLoading}
                         className="w-full pl-2 pr-6 py-1.5 bg-slate-950 border border-slate-800 rounded-md text-slate-200 focus:outline-none focus:border-cyan-550 transition-all text-xs appearance-none cursor-pointer disabled:opacity-50"
                       >
+                        <option value="" className="bg-slate-950 text-slate-400">
+                          Workspace Root (default)
+                        </option>
                         {pagesLoading ? (
                           <option value="" disabled>Loading parent pages...</option>
-                        ) : pages.length === 0 ? (
-                          <option value="" disabled>No parent pages found</option>
                         ) : (
                           pages.map((p) => (
                             <option key={p.id} value={p.id} className="bg-slate-950 text-slate-200">
@@ -426,7 +458,7 @@ export const YoutubeSummarizer: React.FC<YoutubeSummarizerProps> = ({
                   <button
                     type="button"
                     onClick={handleCreateDatabase}
-                    disabled={createDbLoading || pagesLoading || !newDbTitle.trim()}
+                    disabled={createDbLoading || !newDbTitle.trim()}
                     className="w-full py-1.5 bg-cyan-600/80 hover:bg-cyan-500 active:scale-[0.98] transition-all rounded-md font-bold text-[10px] uppercase tracking-wider text-white flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {createDbLoading ? (
@@ -496,18 +528,6 @@ export const YoutubeSummarizer: React.FC<YoutubeSummarizerProps> = ({
                         placeholder="System default key"
                         value={notionApiKey}
                         onChange={(e) => setNotionApiKey(e.target.value)}
-                        className="w-full px-2 py-1.5 bg-slate-950 border border-slate-800 rounded-md text-slate-200 placeholder-slate-650 focus:outline-none focus:border-cyan-550 transition-all text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                        Notion Database ID
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="System default DB"
-                        value={notionDatabaseId}
-                        onChange={(e) => setNotionDatabaseId(e.target.value)}
                         className="w-full px-2 py-1.5 bg-slate-950 border border-slate-800 rounded-md text-slate-200 placeholder-slate-650 focus:outline-none focus:border-cyan-550 transition-all text-xs"
                       />
                     </div>

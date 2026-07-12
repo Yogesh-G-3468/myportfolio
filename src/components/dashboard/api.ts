@@ -102,14 +102,16 @@ export const getNotionPages = async (notionApiKey?: string): Promise<NotionItem[
 };
 
 export const createNotionDatabase = async (
-  parentPageId: string,
   title: string,
+  parentPageId?: string,
   notionApiKey?: string
 ): Promise<NotionItem> => {
   const body: Record<string, string> = {
-    parent_page_id: parentPageId,
     title: title,
   };
+  if (parentPageId?.trim()) {
+    body.parent_page_id = parentPageId.trim();
+  }
   if (notionApiKey?.trim()) {
     body.notion_api_key = notionApiKey.trim();
   }
