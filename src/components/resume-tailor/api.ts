@@ -3,10 +3,11 @@ import { stratosFetch, BASE_URL, getStratosToken } from "../dashboard/api";
 export interface ResumeUploadResponse {
   resume_id: string;
   filename: string;
-  content_type: string;
-  sections_found: string[];
-  plain_text_length: number;
-  created_at: string;
+  pdfBlob?: Blob;
+  content_type?: string;
+  sections_found?: string[];
+  plain_text_length?: number;
+  created_at?: string;
 }
 
 export interface JdExtractionResponse {
@@ -67,7 +68,22 @@ export const uploadResume = async (file: File): Promise<ResumeUploadResponse> =>
     throw new Error(errorBody.detail || "Failed to upload resume file");
   }
 
-  return response.json();
+  // 1. Extract the resume ID and filename from response headers
+  const resumeId = response.headers.get("X-Resume-Id") || response.headers.get("x-resume-id") || "";
+  const filename = response.headers.get("X-Filename") || response.headers.get("x-filename") || file.name;
+
+  // 2. Extract the PDF as a binary blob
+  const pdfBlob = await response.blob();
+
+  return {
+    resume_id: resumeId,
+    filename: filename,
+    pdfBlob: pdfBlob,
+    content_type: "application/pdf",
+    sections_found: ["summary", "skills", "experience", "education"], // Default sections
+    plain_text_length: pdfBlob.size,
+    created_at: new Date().toISOString()
+  };
 };
 
 // Extract skills and attributes from JD

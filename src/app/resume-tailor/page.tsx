@@ -118,6 +118,16 @@ export default function ResumeTailorPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [resumeBlobUrl, setResumeBlobUrl] = useState<string | null>(null);
+
+  // Revoke object URL on unmount or URL shift
+  useEffect(() => {
+    return () => {
+      if (resumeBlobUrl) {
+        URL.revokeObjectURL(resumeBlobUrl);
+      }
+    };
+  }, [resumeBlobUrl]);
   
   // JD Ingestion state
   const [activeJdTab, setActiveJdTab] = useState<"paste" | "url">("paste");
@@ -334,10 +344,14 @@ export default function ResumeTailorPage() {
 
     if (isDemoMode) {
       setTimeout(() => {
+        const mockBlob = new Blob(["Mock PDF Binary Content"], { type: "application/pdf" });
+        const mockUrl = URL.createObjectURL(mockBlob);
+        setResumeBlobUrl(mockUrl);
+
         const mockUpload: ResumeUploadResponse = {
           resume_id: "845c479c-7e61-4688-bf2b-b9f121d515a8",
           filename: file.name,
-          content_type: file.type || "application/octet-stream",
+          content_type: "application/pdf",
           sections_found: ["summary", "skills", "experience", "education"],
           plain_text_length: 4500,
           created_at: new Date().toISOString()
@@ -355,9 +369,18 @@ export default function ResumeTailorPage() {
     try {
       const data = await uploadResume(file);
       setResumeId(data.resume_id);
+      
+      if (data.pdfBlob) {
+        const url = URL.createObjectURL(data.pdfBlob);
+        setResumeBlobUrl(url);
+      }
+
       setResumeMetadata(data);
       localStorage.setItem("stratos_resume_id", data.resume_id);
-      localStorage.setItem("stratos_resume_metadata", JSON.stringify(data));
+      
+      // Filter out pdfBlob from stored metadata to avoid JSON serialization issues
+      const { pdfBlob, ...serializableMetadata } = data;
+      localStorage.setItem("stratos_resume_metadata", JSON.stringify(serializableMetadata));
       showToast("Resume uploaded successfully", "success");
     } catch (err: any) {
       console.error(err);
@@ -370,6 +393,10 @@ export default function ResumeTailorPage() {
   const clearUploadedFile = () => {
     setResumeId(null);
     setResumeMetadata(null);
+    if (resumeBlobUrl) {
+      URL.revokeObjectURL(resumeBlobUrl);
+      setResumeBlobUrl(null);
+    }
     localStorage.removeItem("stratos_resume_id");
     localStorage.removeItem("stratos_resume_metadata");
     showToast("Resume cleared", "success");
@@ -858,7 +885,7 @@ export default function ResumeTailorPage() {
                     <div className="flex-1 min-w-0">
                       <h4 className="font-bold text-xs text-foreground truncate">{resumeMetadata.filename}</h4>
                       <p className="text-[10px] text-foreground-secondary font-semibold mt-0.5">
-                        Size: {(resumeMetadata.plain_text_length / 1024).toFixed(1)} KB • Extracted: {resumeMetadata.sections_found?.length || 0} sections
+                        Size: {((resumeMetadata.plain_text_length || 0) / 1024).toFixed(1)} KB • Extracted: {resumeMetadata.sections_found?.length || 0} sections
                       </p>
                       {resumeMetadata.sections_found && (
                         <div className="flex flex-wrap gap-1 mt-2">
@@ -867,6 +894,27 @@ export default function ResumeTailorPage() {
                               {s}
                             </span>
                           ))}
+                        </div>
+                      )}
+                      
+                      {resumeBlobUrl && (
+                        <div className="flex items-center gap-3 mt-3 pt-2.5 border-t border-border/40">
+                          <button
+                            type="button"
+                            onClick={() => window.open(resumeBlobUrl)}
+                            className="text-[10px] font-bold text-accent hover:text-accent/80 transition-colors flex items-center gap-1 cursor-pointer"
+                          >
+                            <Eye size={12} />
+                            Preview PDF
+                          </button>
+                          <a
+                            href={resumeBlobUrl}
+                            download={resumeMetadata.filename}
+                            className="text-[10px] font-bold text-foreground-secondary hover:text-foreground transition-colors flex items-center gap-1 cursor-pointer"
+                          >
+                            <Download size={12} />
+                            Download PDF
+                          </a>
                         </div>
                       )}
                     </div>
