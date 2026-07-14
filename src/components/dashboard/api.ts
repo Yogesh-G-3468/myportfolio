@@ -1,6 +1,13 @@
 import { LiveScannerResponse, StockDetailsResponse, RiskState } from "./types";
 
-export const BASE_URL = process.env.BACKEND_URL || "https://stratos.yogeshwaran.space";
+const getBackendUrl = (): string => {
+  if (typeof window !== "undefined") {
+    return "/api/proxy";
+  }
+  return process.env.BACKEND_URL || "https://stratos.yogeshwaran.space";
+};
+
+export const BASE_URL = getBackendUrl();
 
 export const getStratosToken = (): string | null => {
   if (typeof window === "undefined") return null;
