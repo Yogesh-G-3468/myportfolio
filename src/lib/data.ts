@@ -73,5 +73,6 @@ export const navLinks = [
   { name: "Projects", href: "#projects" },
   { name: "Experience", href: "#experience" },
   { name: "Blogs", href: "/blogs" },
+  { name: "Tailor Resume", href: "/resume-tailor" },
   { name: "Contact", href: "#contact" },
 ];

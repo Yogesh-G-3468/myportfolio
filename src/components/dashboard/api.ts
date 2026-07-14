@@ -42,9 +42,9 @@ export const stratosFetch = async (endpoint: string, options: RequestInit = {}):
   const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
   const url = endpoint.startsWith("http") ? endpoint : `${cleanBase}${cleanEndpoint}`;
   
-  const headers = {
-    "Content-Type": "application/json",
-    ...options.headers,
+  const headers: Record<string, string> = {
+    ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+    ...(options.headers as Record<string, string>),
     ...(token ? { Authorization: `Bearer ${token}` } : {})
   };
   
