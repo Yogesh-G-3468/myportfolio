@@ -696,6 +696,10 @@ export default function ResumeTailorPage() {
         if (outputFormat === "markdown") {
           mime = "text/markdown";
           ext = "md";
+        } else if (outputFormat === "latex") {
+          mime = "text/x-tex";
+          ext = "tex";
+          content = `% Mock LaTeX document\n\\documentclass{article}\n\\begin{document}\n${content}\n\\end{document}`;
         } else if (outputFormat === "docx") {
           content = "Mock DOCX binary content placeholder\n" + content;
           mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -1279,6 +1283,7 @@ export default function ResumeTailorPage() {
                       <option value="docx">Microsoft Word (.docx)</option>
                       <option value="pdf">Adobe PDF (.pdf)</option>
                       <option value="markdown">Markdown (.md)</option>
+                      <option value="latex">LaTeX Source (.tex)</option>
                     </select>
                   </div>
                 </div>

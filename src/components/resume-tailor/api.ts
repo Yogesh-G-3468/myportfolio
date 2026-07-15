@@ -191,6 +191,7 @@ export const downloadResumeFile = async (
   // Extension mapping
   let ext = format;
   if (format === "markdown") ext = "md";
+  if (format === "latex") ext = "tex";
   
   link.setAttribute("download", `${filename}.${ext}`);
   document.body.appendChild(link);
