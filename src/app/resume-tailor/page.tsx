@@ -119,6 +119,9 @@ export default function ResumeTailorPage() {
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [resumeBlobUrl, setResumeBlobUrl] = useState<string | null>(null);
+  const [activeResumeTab, setActiveResumeTab] = useState<"upload" | "paste">("upload");
+  const [pastedResumeText, setPastedResumeText] = useState("");
+  const [showLatexBadge, setShowLatexBadge] = useState(false);
 
   // Revoke object URL on unmount or URL shift
   useEffect(() => {
@@ -334,8 +337,8 @@ export default function ResumeTailorPage() {
   const handleFileProcess = async (file: File) => {
     // Basic extension check
     const extension = file.name.split(".").pop()?.toLowerCase();
-    if (!["pdf", "docx", "txt"].includes(extension || "")) {
-      showToast("Unsupported file format. Please upload PDF, DOCX or TXT", "error");
+    if (!["pdf", "docx", "txt", "tex"].includes(extension || "")) {
+      showToast("Unsupported file format. Please upload PDF, DOCX, TXT or TEX", "error");
       return;
     }
 
@@ -351,7 +354,7 @@ export default function ResumeTailorPage() {
         const mockUpload: ResumeUploadResponse = {
           resume_id: "845c479c-7e61-4688-bf2b-b9f121d515a8",
           filename: file.name,
-          content_type: "application/pdf",
+          content_type: extension === "tex" ? "text/x-tex" : "application/pdf",
           sections_found: ["summary", "skills", "experience", "education"],
           plain_text_length: 4500,
           created_at: new Date().toISOString()
@@ -397,9 +400,47 @@ export default function ResumeTailorPage() {
       URL.revokeObjectURL(resumeBlobUrl);
       setResumeBlobUrl(null);
     }
+    setPastedResumeText("");
+    setShowLatexBadge(false);
     localStorage.removeItem("stratos_resume_id");
     localStorage.removeItem("stratos_resume_metadata");
     showToast("Resume cleared", "success");
+  };
+
+  // Helper for detecting LaTeX markup
+  const isLatexCode = (text: string): boolean => {
+    const latexSignatures = [
+      /\\documentclass/,
+      /\\begin\{document\}/,
+      /\\section\{/,
+      /\\subsection\{/,
+      /\\usepackage/,
+      /\\item/
+    ];
+    if (/\\documentclass/.test(text)) return true;
+    const matches = latexSignatures.filter((sig) => sig.test(text)).length;
+    return matches >= 2;
+  };
+
+  const handlePastedResumeChange = (text: string) => {
+    setPastedResumeText(text);
+    if (isLatexCode(text)) {
+      setShowLatexBadge(true);
+    } else {
+      setShowLatexBadge(false);
+    }
+  };
+
+  const handleSavePastedResume = async () => {
+    if (!pastedResumeText.trim()) {
+      showToast("Please paste your resume content", "error");
+      return;
+    }
+    const isLatex = isLatexCode(pastedResumeText);
+    const filename = isLatex ? "resume.tex" : "resume.txt";
+    const type = isLatex ? "text/x-tex" : "text/plain";
+    const file = new File([pastedResumeText], filename, { type });
+    await handleFileProcess(file);
   };
 
   // Ingest/extract Job Description
@@ -920,44 +961,111 @@ export default function ResumeTailorPage() {
                     </div>
                   </div>
                 ) : (
-                  /* Drop zone */
-                  <div
-                    onDragEnter={handleDrag}
-                    onDragOver={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDrop={handleDrop}
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center gap-2.5 cursor-pointer transition-all ${
-                      dragActive 
-                        ? "border-accent bg-accent-light/10" 
-                        : "border-border hover:border-accent hover:bg-muted/30"
-                    }`}
-                  >
-                    <input 
-                      type="file" 
-                      ref={fileInputRef}
-                      onChange={handleFileChange}
-                      accept=".pdf,.docx,.txt"
-                      className="hidden"
-                    />
-                    
-                    {isUploading ? (
-                      <div className="flex flex-col items-center gap-2">
-                        <Loader2 className="animate-spin text-accent" size={24} />
-                        <span className="text-[11px] font-bold text-foreground">Reading and parsing resume...</span>
+                  <div className="space-y-4">
+                    {/* Tab Switcher */}
+                    <div className="flex bg-muted p-1 rounded-xl gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setActiveResumeTab("upload")}
+                        className={`flex-1 py-1.5 text-[10px] font-black rounded-lg transition-all ${
+                          activeResumeTab === "upload"
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-foreground-secondary hover:text-foreground"
+                        }`}
+                      >
+                        Upload File
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveResumeTab("paste")}
+                        className={`flex-1 py-1.5 text-[10px] font-black rounded-lg transition-all ${
+                          activeResumeTab === "paste"
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-foreground-secondary hover:text-foreground"
+                        }`}
+                      >
+                        Paste Text
+                      </button>
+                    </div>
+
+                    {activeResumeTab === "upload" ? (
+                      /* Drop zone */
+                      <div
+                        onDragEnter={handleDrag}
+                        onDragOver={handleDrag}
+                        onDragLeave={handleDrag}
+                        onDrop={handleDrop}
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center gap-2.5 cursor-pointer transition-all ${
+                          dragActive 
+                            ? "border-accent bg-accent-light/10" 
+                            : "border-border hover:border-accent hover:bg-muted/30"
+                        }`}
+                      >
+                        <input 
+                          type="file" 
+                          ref={fileInputRef}
+                          onChange={handleFileChange}
+                          accept=".pdf,.docx,.txt,.tex"
+                          className="hidden"
+                        />
+                        
+                        {isUploading ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <Loader2 className="animate-spin text-accent" size={24} />
+                            <span className="text-[11px] font-bold text-foreground">Reading and parsing resume...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-foreground-secondary">
+                              <Upload size={18} />
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xs font-black text-foreground">Drag & Drop base resume file</p>
+                              <p className="text-[10px] text-foreground-secondary mt-0.5 font-medium">
+                                Supports PDF, DOCX, TXT, TEX (Max 10MB)
+                              </p>
+                            </div>
+                          </>
+                        )}
                       </div>
                     ) : (
-                      <>
-                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-foreground-secondary">
-                          <Upload size={18} />
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs font-black text-foreground">Drag & Drop base resume file</p>
-                          <p className="text-[10px] text-foreground-secondary mt-0.5 font-medium">
-                            Supports PDF, DOCX, TXT (Max 10MB)
-                          </p>
-                        </div>
-                      </>
+                      /* Paste Text Area */
+                      <div className="space-y-3">
+                        <textarea
+                          value={pastedResumeText}
+                          onChange={(e) => handlePastedResumeChange(e.target.value)}
+                          placeholder="Paste your plain text or raw LaTeX resume here (e.g., beginning with \documentclass)..."
+                          rows={6}
+                          className="w-full p-3 bg-muted/40 border border-border rounded-xl text-xs outline-none focus:border-accent text-foreground font-semibold placeholder:text-muted-foreground/80 resize-none"
+                        />
+
+                        {showLatexBadge && (
+                          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-accent-light/40 border border-accent/20 rounded-xl text-accent text-[10px] font-bold animate-fade-in">
+                            <Sparkles size={12} className="animate-pulse" />
+                            ✨ LaTeX formatting signature detected
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={handleSavePastedResume}
+                          disabled={isUploading}
+                          className="w-full py-2.5 bg-accent hover:bg-accent/90 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 active:scale-[0.98] cursor-pointer disabled:opacity-50"
+                        >
+                          {isUploading ? (
+                            <>
+                              <Loader2 size={13} className="animate-spin" />
+                              Parsing Resume...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 size={13} />
+                              Save & Parse Resume
+                            </>
+                          )}
+                        </button>
+                      </div>
                     )}
                   </div>
                 )}
