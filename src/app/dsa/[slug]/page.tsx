@@ -67,6 +67,9 @@ export default async function DsaPatternPage({ params }: PageProps) {
         .replace(/src="images\//g, 'src="/dsa/images/')
         .replace(/\(\.\.\/images\//g, "(/dsa/images/");
 
+    // Autolink bare HTTP/HTTPS URLs (that aren't already part of a markdown link [text](url) or HTML href/src)
+    processedMarkdown = processedMarkdown.replace(/(?<!\]\()(?<!href=")(?<!src=")(https?:\/\/[^\s<)]+)/g, "<$1>");
+
     // If it's a pattern page, we strip the main H1 from the text to avoid double headers since we render the title in a custom header
     const h1Regex = /^#\s+.+$/m;
     processedMarkdown = processedMarkdown.replace(h1Regex, "");
@@ -79,7 +82,7 @@ export default async function DsaPatternPage({ params }: PageProps) {
     const readTime = Math.ceil(wordCount / 200);
 
     return (
-        <article className="max-w-4xl mx-auto py-4 px-2 sm:px-6">
+        <article className="w-full py-4 px-2 sm:px-6">
             {/* Breadcrumb / Top Nav */}
             <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground-secondary mb-6 bg-background-elevated/40 border border-border/50 py-1.5 px-4 rounded-full w-fit backdrop-blur-sm">
                 <Link href="/" className="hover:text-accent transition-colors">Home</Link>

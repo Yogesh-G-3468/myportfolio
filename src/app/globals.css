@@ -1,4 +1,7 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+
 
 :root {
   /* Light theme — warm with a distinct accent */
