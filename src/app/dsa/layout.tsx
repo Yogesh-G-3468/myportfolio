@@ -11,7 +11,7 @@ export default function DsaLayout({
         <>
             <Navbar />
             <div className="min-h-screen pt-16 flex flex-col bg-background">
-                <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex-1 flex flex-col lg:flex-row gap-10 py-6">
+                <div className="max-w-[1512px] w-full mx-auto px-4 sm:px-6 lg:px-8 flex-1 flex flex-col lg:flex-row gap-10 py-6">
                     <DsaSidebar />
                     <main className="flex-1 min-w-0 bg-background">
                         {children}

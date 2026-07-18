@@ -3,12 +3,23 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { navLinks } from "@/lib/data";
 import ThemeToggle from "./ThemeToggle";
 
 export default function Navbar() {
+    const pathname = usePathname();
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    const isWidePage = pathname && (
+        pathname.startsWith("/dsa") || 
+        pathname.startsWith("/career-scraper") || 
+        pathname.startsWith("/resume-tailor") || 
+        pathname.startsWith("/blogs") ||
+        pathname.startsWith("/admin")
+    );
+    const maxWidthClass = isWidePage ? "max-w-[1512px]" : "max-w-3xl";
 
     useEffect(() => {
         const handleScroll = () => {
@@ -41,7 +52,7 @@ export default function Navbar() {
                         : "bg-transparent"
                     }`}
             >
-                <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className={`${maxWidthClass} mx-auto px-4 sm:px-6 lg:px-8 w-full`}>
                     <div className="flex items-center justify-between h-16">
                         <a
                             href="#"

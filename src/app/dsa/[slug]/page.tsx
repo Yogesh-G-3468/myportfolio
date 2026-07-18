@@ -82,7 +82,7 @@ export default async function DsaPatternPage({ params }: PageProps) {
     const readTime = Math.ceil(wordCount / 200);
 
     return (
-        <article className="w-full py-4 px-2 sm:px-6">
+        <article className="w-full max-w-[960px] py-4 px-2 sm:px-6">
             {/* Breadcrumb / Top Nav */}
             <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground-secondary mb-6 bg-background-elevated/40 border border-border/50 py-1.5 px-4 rounded-full w-fit backdrop-blur-sm">
                 <Link href="/" className="hover:text-accent transition-colors">Home</Link>
