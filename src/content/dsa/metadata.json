@@ -1,0 +1,121 @@
+[
+  {
+    "originalName": "README.md",
+    "slug": "overview",
+    "title": "Overview",
+    "patternNum": null,
+    "filePath": "/content/dsa/overview.md"
+  },
+  {
+    "originalName": "✅  Pattern 01 : Sliding Window.md",
+    "slug": "pattern-01-sliding-window",
+    "title": "Sliding Window",
+    "patternNum": 1,
+    "filePath": "/content/dsa/pattern-01-sliding-window.md"
+  },
+  {
+    "originalName": "✅  Pattern 02: Two Pointers.md",
+    "slug": "pattern-02-two-pointers",
+    "title": "Two Pointers",
+    "patternNum": 2,
+    "filePath": "/content/dsa/pattern-02-two-pointers.md"
+  },
+  {
+    "originalName": "✅  Pattern 03: Fast & Slow pointers.md",
+    "slug": "pattern-03-fast-slow-pointers",
+    "title": "Fast & Slow pointers",
+    "patternNum": 3,
+    "filePath": "/content/dsa/pattern-03-fast-slow-pointers.md"
+  },
+  {
+    "originalName": "✅  Pattern 04 : Merge Intervals.md",
+    "slug": "pattern-04-merge-intervals",
+    "title": "Merge Intervals",
+    "patternNum": 4,
+    "filePath": "/content/dsa/pattern-04-merge-intervals.md"
+  },
+  {
+    "originalName": "✅  Pattern 05: Cyclic Sort.md",
+    "slug": "pattern-05-cyclic-sort",
+    "title": "Cyclic Sort",
+    "patternNum": 5,
+    "filePath": "/content/dsa/pattern-05-cyclic-sort.md"
+  },
+  {
+    "originalName": "✅  Pattern 06: In-place Reversal of a LinkedList.md",
+    "slug": "pattern-06-in-place-reversal-of-a-linkedlist",
+    "title": "In-place Reversal of a LinkedList",
+    "patternNum": 6,
+    "filePath": "/content/dsa/pattern-06-in-place-reversal-of-a-linkedlist.md"
+  },
+  {
+    "originalName": "✅  Pattern 07: Tree Breadth First Search.md",
+    "slug": "pattern-07-tree-breadth-first-search",
+    "title": "Tree Breadth First Search",
+    "patternNum": 7,
+    "filePath": "/content/dsa/pattern-07-tree-breadth-first-search.md"
+  },
+  {
+    "originalName": "✅  Pattern 08:Tree Depth First Search.md",
+    "slug": "pattern-08-tree-depth-first-search",
+    "title": "Tree Depth First Search",
+    "patternNum": 8,
+    "filePath": "/content/dsa/pattern-08-tree-depth-first-search.md"
+  },
+  {
+    "originalName": "✅ 🙃 Pattern 09: Two Heaps.md",
+    "slug": "pattern-09-two-heaps",
+    "title": "Two Heaps",
+    "patternNum": 9,
+    "filePath": "/content/dsa/pattern-09-two-heaps.md"
+  },
+  {
+    "originalName": "✅  Pattern 10: Subsets.md",
+    "slug": "pattern-10-subsets",
+    "title": "Subsets",
+    "patternNum": 10,
+    "filePath": "/content/dsa/pattern-10-subsets.md"
+  },
+  {
+    "originalName": "✅  Pattern 11: Modified Binary Search.md",
+    "slug": "pattern-11-modified-binary-search",
+    "title": "Modified Binary Search",
+    "patternNum": 11,
+    "filePath": "/content/dsa/pattern-11-modified-binary-search.md"
+  },
+  {
+    "originalName": "✅ Pattern 12:  Bitwise XOR.md",
+    "slug": "pattern-12-bitwise-xor",
+    "title": "Bitwise XOR",
+    "patternNum": 12,
+    "filePath": "/content/dsa/pattern-12-bitwise-xor.md"
+  },
+  {
+    "originalName": "✅ Pattern 13: Top 'K' Elements.md",
+    "slug": "pattern-13-top-k-elements",
+    "title": "Top 'K' Elements",
+    "patternNum": 13,
+    "filePath": "/content/dsa/pattern-13-top-k-elements.md"
+  },
+  {
+    "originalName": "✅ Pattern 14: K-way merge.md",
+    "slug": "pattern-14-k-way-merge",
+    "title": "K-way merge",
+    "patternNum": 14,
+    "filePath": "/content/dsa/pattern-14-k-way-merge.md"
+  },
+  {
+    "originalName": "✅ Pattern 15: 0-1 Knapsack (Dynamic Programming).md",
+    "slug": "pattern-15-0-1-knapsack-dynamic-programming",
+    "title": "0-1 Knapsack (Dynamic Programming)",
+    "patternNum": 15,
+    "filePath": "/content/dsa/pattern-15-0-1-knapsack-dynamic-programming.md"
+  },
+  {
+    "originalName": "✅ Pattern 16: 🔎 Topological Sort (Graph).md",
+    "slug": "pattern-16-topological-sort-graph",
+    "title": "Topological Sort (Graph)",
+    "patternNum": 16,
+    "filePath": "/content/dsa/pattern-16-topological-sort-graph.md"
+  }
+]
