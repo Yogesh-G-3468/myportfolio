@@ -74,5 +74,6 @@ export const navLinks = [
   { name: "Experience", href: "#experience" },
   { name: "Blogs", href: "/blogs" },
   { name: "Tailor Resume", href: "/resume-tailor" },
+  { name: "Career Scraper", href: "/career-scraper" },
   { name: "Contact", href: "#contact" },
 ];

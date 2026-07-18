@@ -1,0 +1,1146 @@
+"use client";
+
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import Navbar from "@/components/Navbar";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Radar,
+  Loader2,
+  ArrowRight,
+  Lock,
+  User,
+  LogOut,
+  AlertTriangle,
+  MapPin,
+  Building2,
+  Clock,
+  ChevronDown,
+  ExternalLink,
+  Search,
+  SlidersHorizontal,
+  Briefcase,
+  Activity,
+  Target,
+  BarChart3,
+  Zap,
+  RefreshCw,
+  CheckCircle2,
+  X,
+} from "lucide-react";
+
+import {
+  BASE_URL,
+  getStratosToken,
+  saveStratosAuth,
+  clearStratosAuth,
+  stratosFetch,
+} from "@/components/dashboard/api";
+
+import {
+  ScraperJob,
+  ScraperRun,
+  fetchScraperJobs,
+  fetchScraperRuns,
+  triggerScrapeNow,
+  MOCK_SCRAPER_JOBS,
+  MOCK_SCRAPER_RUNS,
+} from "@/components/career-scraper/api";
+
+// ── Helpers ────────────────────────────────────────────────────────────
+
+const capitalize = (s: string) =>
+  s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+
+const relativeTime = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return "—";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+};
+
+const formatDuration = (start: string, end: string | null): string => {
+  if (!end) return "running…";
+  const ms = new Date(end).getTime() - new Date(start).getTime();
+  const totalSec = Math.round(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return min > 0 ? `${min}m ${sec}s` : `${sec}s`;
+};
+
+const formatDate = (dateStr: string): string => {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const getRelevanceInfo = (score: number) => {
+  if (score >= 0.8)
+    return {
+      label: "Excellent Match",
+      color: "text-emerald-400",
+      bg: "bg-emerald-500",
+      bgLight: "bg-emerald-500/15",
+      border: "border-emerald-500/30",
+    };
+  if (score >= 0.6)
+    return {
+      label: "Good Match",
+      color: "text-blue-400",
+      bg: "bg-blue-500",
+      bgLight: "bg-blue-500/15",
+      border: "border-blue-500/30",
+    };
+  return {
+    label: "Fair Match",
+    color: "text-amber-400",
+    bg: "bg-amber-500",
+    bgLight: "bg-amber-500/15",
+    border: "border-amber-500/30",
+  };
+};
+
+// ── Animated Counter ───────────────────────────────────────────────────
+
+const AnimatedNumber = ({
+  value,
+  suffix = "",
+  decimals = 0,
+}: {
+  value: number;
+  suffix?: string;
+  decimals?: number;
+}) => {
+  const [displayed, setDisplayed] = useState(0);
+  const ref = useRef<number>(0);
+
+  useEffect(() => {
+    const start = ref.current;
+    const diff = value - start;
+    const duration = 800;
+    const startTime = performance.now();
+
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // ease-out quad
+      const eased = 1 - (1 - progress) * (1 - progress);
+      const current = start + diff * eased;
+      setDisplayed(current);
+      if (progress < 1) requestAnimationFrame(animate);
+      else ref.current = value;
+    };
+
+    requestAnimationFrame(animate);
+  }, [value]);
+
+  return (
+    <span className="tabular-nums">
+      {decimals > 0 ? displayed.toFixed(decimals) : Math.round(displayed)}
+      {suffix}
+    </span>
+  );
+};
+
+// ── Skeleton Card ──────────────────────────────────────────────────────
+
+const SkeletonCard = () => (
+  <div className="bg-card/60 border border-border rounded-2xl p-5 animate-pulse">
+    <div className="h-5 w-3/4 bg-muted rounded-lg mb-3" />
+    <div className="h-3 w-1/2 bg-muted rounded-lg mb-4" />
+    <div className="flex gap-3 mb-4">
+      <div className="h-3 w-24 bg-muted rounded-lg" />
+      <div className="h-3 w-20 bg-muted rounded-lg" />
+    </div>
+    <div className="h-2 w-full bg-muted rounded-full mb-3" />
+    <div className="flex justify-between items-center">
+      <div className="h-3 w-20 bg-muted rounded-lg" />
+      <div className="h-8 w-16 bg-muted rounded-xl" />
+    </div>
+  </div>
+);
+
+// ══════════════════════════════════════════════════════════════════════
+//  MAIN PAGE COMPONENT
+// ══════════════════════════════════════════════════════════════════════
+
+export default function CareerScraperPage() {
+  const [mounted, setMounted] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+
+  // Auth
+  const [username, setUsername] = useState("yogesh");
+  const [password, setPassword] = useState("testpassword");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // Mode
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  const [toastMessage, setToastMessage] = useState<{
+    text: string;
+    type: "success" | "error";
+  } | null>(null);
+
+  // Data
+  const [jobs, setJobs] = useState<ScraperJob[]>([]);
+  const [runs, setRuns] = useState<ScraperRun[]>([]);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+  const [isLoadingRuns, setIsLoadingRuns] = useState(false);
+  const [isScraping, setIsScraping] = useState(false);
+
+  // Filters
+  const [minScore, setMinScore] = useState(0.5);
+  const [limit, setLimit] = useState(50);
+  const [searchText, setSearchText] = useState("");
+  const [siteFilter, setSiteFilter] = useState("all");
+
+  // UI
+  const [historyExpanded, setHistoryExpanded] = useState(false);
+  const [expandedErrorId, setExpandedErrorId] = useState<number | null>(null);
+
+  // Refs
+  const autoRefreshRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ── Mount & Auth ───────────────────────────────────────────────────
+
+  useEffect(() => {
+    setMounted(true);
+    const savedToken = getStratosToken();
+    const savedDemoMode =
+      localStorage.getItem("stratos_demo_mode") === "true";
+    setIsDemoMode(savedDemoMode);
+    if (savedToken) {
+      setToken(savedToken);
+    } else if (savedDemoMode) {
+      setToken("demo_token");
+    }
+
+    const handleUnauthorized = () => handleLogout();
+    window.addEventListener("stratos-unauthorized", handleUnauthorized);
+    return () => {
+      window.removeEventListener("stratos-unauthorized", handleUnauthorized);
+      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+    };
+  }, []);
+
+  // Toast auto-dismiss
+  useEffect(() => {
+    if (toastMessage) {
+      const t = setTimeout(() => setToastMessage(null), 5000);
+      return () => clearTimeout(t);
+    }
+  }, [toastMessage]);
+
+  const showToast = (text: string, type: "success" | "error") =>
+    setToastMessage({ text, type });
+
+  // ── Data Fetching ──────────────────────────────────────────────────
+
+  const loadJobs = useCallback(
+    async (ms: number = minScore, lm: number = limit) => {
+      setIsLoadingJobs(true);
+      if (isDemoMode) {
+        setTimeout(() => {
+          const filtered = MOCK_SCRAPER_JOBS.filter(
+            (j) => j.relevance_score >= ms
+          ).slice(0, lm);
+          setJobs(filtered);
+          setIsLoadingJobs(false);
+        }, 600);
+        return;
+      }
+      try {
+        const data = await fetchScraperJobs(ms, lm);
+        setJobs(data);
+      } catch (err: any) {
+        showToast(err.message || "Failed to load jobs", "error");
+      } finally {
+        setIsLoadingJobs(false);
+      }
+    },
+    [isDemoMode, minScore, limit]
+  );
+
+  const loadRuns = useCallback(async () => {
+    setIsLoadingRuns(true);
+    if (isDemoMode) {
+      setTimeout(() => {
+        setRuns(MOCK_SCRAPER_RUNS);
+        setIsLoadingRuns(false);
+      }, 400);
+      return;
+    }
+    try {
+      const data = await fetchScraperRuns(10);
+      setRuns(data);
+    } catch (err: any) {
+      showToast(err.message || "Failed to load scrape history", "error");
+    } finally {
+      setIsLoadingRuns(false);
+    }
+  }, [isDemoMode]);
+
+  const loadAllData = useCallback(() => {
+    loadJobs();
+    loadRuns();
+  }, [loadJobs, loadRuns]);
+
+  // Load data when authenticated
+  useEffect(() => {
+    if (mounted && (token || isDemoMode)) {
+      loadAllData();
+    }
+  }, [mounted, token, isDemoMode]);
+
+  // Re-fetch when filter params change
+  useEffect(() => {
+    if (mounted && (token || isDemoMode)) {
+      loadJobs(minScore, limit);
+    }
+  }, [minScore, limit]);
+
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    if (mounted && (token || isDemoMode)) {
+      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+      autoRefreshRef.current = setInterval(() => {
+        loadAllData();
+      }, 5 * 60 * 1000);
+    }
+    return () => {
+      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+    };
+  }, [mounted, token, isDemoMode, loadAllData]);
+
+  // ── Actions ────────────────────────────────────────────────────────
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthError(null);
+
+    if (isDemoMode) {
+      const expiresAt = new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000
+      ).toISOString();
+      saveStratosAuth("demo_token", expiresAt);
+      setToken("demo_token");
+      setAuthLoading(false);
+      showToast("Demo login successful!", "success");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(
+          err.detail || "Authentication rejected. Invalid credentials."
+        );
+      }
+      const data = await response.json();
+      const expiresAt = new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000
+      ).toISOString();
+      saveStratosAuth(data.access_token, expiresAt);
+      setToken(data.access_token);
+      showToast("Successfully authenticated", "success");
+    } catch (err: any) {
+      setAuthError(err.message || "Something went wrong.");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    clearStratosAuth();
+    setToken(null);
+    setJobs([]);
+    setRuns([]);
+    showToast("Logged out", "success");
+  };
+
+  const toggleDemoMode = (val: boolean) => {
+    setIsDemoMode(val);
+    localStorage.setItem("stratos_demo_mode", val ? "true" : "false");
+    if (val) {
+      setToken("demo_token");
+      showToast("Switched to Demo Mode", "success");
+    } else {
+      const savedToken = getStratosToken();
+      setToken(savedToken);
+      showToast("Switched to Production API Mode", "success");
+    }
+  };
+
+  const handleRunScrape = async () => {
+    setIsScraping(true);
+    showToast("Starting full scrape cycle — this may take 30-60 seconds…", "success");
+
+    if (isDemoMode) {
+      setTimeout(() => {
+        setIsScraping(false);
+        showToast("Scrape completed successfully! (Demo)", "success");
+        loadAllData();
+      }, 3000);
+      return;
+    }
+
+    try {
+      await triggerScrapeNow();
+      showToast("Scrape completed successfully!", "success");
+      loadAllData();
+    } catch (err: any) {
+      showToast(err.message || "Scrape failed", "error");
+    } finally {
+      setIsScraping(false);
+    }
+  };
+
+  // ── Derived Data ───────────────────────────────────────────────────
+
+  const latestRun = runs.length > 0 ? runs[0] : null;
+  const totalJobs = jobs.length;
+  const avgRelevance =
+    jobs.length > 0
+      ? jobs.reduce((sum, j) => sum + j.relevance_score, 0) / jobs.length
+      : 0;
+
+  // Client-side filters
+  const uniqueSites = Array.from(new Set(jobs.map((j) => j.site_name))).sort();
+  const filteredJobs = jobs.filter((j) => {
+    if (siteFilter !== "all" && j.site_name !== siteFilter) return false;
+    if (
+      searchText &&
+      !j.title.toLowerCase().includes(searchText.toLowerCase())
+    )
+      return false;
+    return true;
+  });
+
+  if (!mounted) return null;
+
+  // ══════════════════════════════════════════════════════════════════
+  //  RENDER
+  // ══════════════════════════════════════════════════════════════════
+
+  return (
+    <>
+      <Navbar />
+      <main className="min-h-screen pt-24 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto flex flex-col gap-6">
+        {/* ── Toast ─────────────────────────────────────────────── */}
+        <AnimatePresence>
+          {toastMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: -20, x: "-50%" }}
+              animate={{ opacity: 1, y: 0, x: "-50%" }}
+              exit={{ opacity: 0, y: -20, x: "-50%" }}
+              className={`fixed top-20 left-1/2 z-[60] px-5 py-3 rounded-2xl shadow-xl border text-xs font-bold flex items-center gap-2 ${
+                toastMessage.type === "success"
+                  ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
+                  : "bg-rose-500/15 border-rose-500/30 text-rose-400"
+              }`}
+            >
+              {toastMessage.type === "success" ? (
+                <CheckCircle2 size={14} />
+              ) : (
+                <AlertTriangle size={14} />
+              )}
+              {toastMessage.text}
+              <button
+                onClick={() => setToastMessage(null)}
+                className="ml-2 hover:opacity-70 transition-opacity"
+              >
+                <X size={12} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Header Bar ────────────────────────────────────────── */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-card/40 backdrop-blur-md border border-border p-5 rounded-3xl shadow-sm">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Radar className="text-accent w-5 h-5 animate-pulse" />
+              <h1 className="text-2xl font-black font-[family-name:var(--font-instrument-serif)] text-foreground tracking-tight">
+                Career Scraper
+              </h1>
+            </div>
+            <p className="text-xs text-foreground-secondary font-medium">
+              AI-powered job discovery — scrapes career pages hourly and matches
+              to your preferences
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 self-stretch md:self-auto justify-between flex-wrap">
+            {/* Demo mode toggle */}
+            <div className="flex items-center gap-2 bg-muted p-1.5 rounded-xl border border-border/60">
+              <span
+                className={`text-[10px] font-black px-2 py-1 rounded-lg transition-colors cursor-pointer ${
+                  !isDemoMode
+                    ? "bg-foreground text-background"
+                    : "text-foreground-secondary hover:text-foreground"
+                }`}
+                onClick={() => toggleDemoMode(false)}
+              >
+                PROD API
+              </span>
+              <span
+                className={`text-[10px] font-black px-2 py-1 rounded-lg transition-colors flex items-center gap-1 cursor-pointer ${
+                  isDemoMode
+                    ? "bg-accent text-white"
+                    : "text-foreground-secondary hover:text-foreground"
+                }`}
+                onClick={() => toggleDemoMode(true)}
+              >
+                DEMO MODE
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+              </span>
+            </div>
+
+            {token && (
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-border/80 hover:bg-muted text-xs font-bold rounded-xl text-rose-500 transition-colors"
+                title="Log out"
+              >
+                <LogOut size={13} />
+                Logout
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── Auth Guard ────────────────────────────────────────── */}
+        {!token ? (
+          <div className="flex-1 flex items-center justify-center py-16">
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full max-w-md bg-card border border-border rounded-3xl p-8 shadow-xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 inset-x-0 h-[3px] bg-gradient-to-r from-accent/20 via-accent to-accent/20" />
+
+              <div className="flex flex-col items-center mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-accent-light flex items-center justify-center text-accent mb-3">
+                  <Lock size={22} className="animate-pulse" />
+                </div>
+                <h2 className="text-xl font-extrabold text-foreground">
+                  Secure Portal Login
+                </h2>
+                <p className="text-xs text-foreground-secondary mt-1">
+                  Authenticate to access the career scraper dashboard
+                </p>
+              </div>
+
+              {authError && (
+                <div className="mb-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 p-3 rounded-2xl text-xs flex items-start gap-2">
+                  <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                  <span>{authError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-foreground-secondary uppercase tracking-widest">
+                    Username
+                  </label>
+                  <div className="relative">
+                    <User
+                      size={14}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground-secondary"
+                    />
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-muted/50 border border-border focus:border-accent rounded-xl text-xs outline-none transition-colors text-foreground font-semibold"
+                      placeholder="Enter username"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-foreground-secondary uppercase tracking-widest">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock
+                      size={14}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground-secondary"
+                    />
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-muted/50 border border-border focus:border-accent rounded-xl text-xs outline-none transition-colors text-foreground font-semibold"
+                      placeholder="Enter password"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  className="w-full py-3 mt-2 bg-accent hover:bg-accent/90 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 active:scale-[0.98] cursor-pointer disabled:opacity-50"
+                >
+                  {authLoading ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Authenticating…
+                    </>
+                  ) : (
+                    <>
+                      Unlock Suite
+                      <ArrowRight size={14} />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {isDemoMode && (
+                <div className="mt-5 pt-4 border-t border-border/80 text-center">
+                  <p className="text-[10px] text-accent/80 font-medium bg-accent-light/40 py-1.5 px-3 rounded-xl inline-block">
+                    ⚡ You are in Demo Mode. Clicking unlock will bypass real
+                    JWT.
+                  </p>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        ) : (
+          /* ══════════════════════════════════════════════════════
+             AUTHENTICATED DASHBOARD
+             ══════════════════════════════════════════════════════ */
+          <div className="flex flex-col gap-6">
+            {/* ── Run Scrape Button ─────────────────────────────── */}
+            <div className="flex justify-end">
+              <button
+                onClick={handleRunScrape}
+                disabled={isScraping}
+                className={`relative flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-black transition-all active:scale-[0.97] cursor-pointer disabled:cursor-wait ${
+                  isScraping
+                    ? "bg-accent/60 text-white/80"
+                    : "bg-accent hover:bg-accent/90 text-white shadow-lg shadow-accent/20"
+                }`}
+              >
+                {/* Pulse ring when idle */}
+                {!isScraping && (
+                  <span className="absolute inset-0 rounded-2xl animate-ping bg-accent/20 pointer-events-none" />
+                )}
+                {isScraping ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Scraping in progress…
+                  </>
+                ) : (
+                  <>
+                    <Zap size={14} />
+                    Run Scrape Now
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* ── Stats Bar ─────────────────────────────────────── */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {[
+                {
+                  label: "Total Jobs Found",
+                  value: totalJobs,
+                  icon: <Briefcase size={16} className="text-accent" />,
+                  suffix: "",
+                },
+                {
+                  label: "New This Run",
+                  value: latestRun?.new_jobs_found ?? 0,
+                  icon: <Activity size={16} className="text-emerald-400" />,
+                  suffix: "",
+                },
+                {
+                  label: "Sites Monitored",
+                  value: latestRun?.sites_attempted ?? 0,
+                  icon: <Target size={16} className="text-blue-400" />,
+                  suffix: "",
+                },
+                {
+                  label: "Avg Relevance",
+                  value: Math.round(avgRelevance * 100),
+                  icon: <BarChart3 size={16} className="text-amber-400" />,
+                  suffix: "%",
+                },
+              ].map((stat, i) => (
+                <motion.div
+                  key={stat.label}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.08 }}
+                  className="bg-card/60 backdrop-blur-md border border-border rounded-2xl p-4 shadow-sm hover:border-accent/30 transition-all duration-300"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    {stat.icon}
+                    <span className="text-[10px] font-bold text-foreground-secondary uppercase tracking-wider">
+                      {stat.label}
+                    </span>
+                  </div>
+                  <div className="text-2xl font-black text-foreground tracking-tight">
+                    <AnimatedNumber
+                      value={stat.value}
+                      suffix={stat.suffix}
+                    />
+                  </div>
+                </motion.div>
+              ))}
+
+              {/* Last Scrape — special card */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.32 }}
+                className="bg-card/60 backdrop-blur-md border border-border rounded-2xl p-4 shadow-sm hover:border-accent/30 transition-all duration-300"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock size={16} className="text-violet-400" />
+                  <span className="text-[10px] font-bold text-foreground-secondary uppercase tracking-wider">
+                    Last Scrape
+                  </span>
+                </div>
+                <div className="text-lg font-black text-foreground tracking-tight">
+                  {latestRun
+                    ? relativeTime(latestRun.finished_at)
+                    : "Never"}
+                </div>
+              </motion.div>
+            </div>
+
+            {/* ── Filter Controls ───────────────────────────────── */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="bg-card/40 backdrop-blur-md border border-border rounded-2xl p-4 shadow-sm"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <SlidersHorizontal
+                  size={14}
+                  className="text-foreground-secondary"
+                />
+                <span className="text-[10px] font-bold text-foreground-secondary uppercase tracking-wider">
+                  Filters
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                {/* Min Relevance Slider */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-foreground-secondary uppercase tracking-widest">
+                    Min Relevance:{" "}
+                    <span className="text-accent">
+                      {(minScore * 100).toFixed(0)}%
+                    </span>
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={minScore * 100}
+                    onChange={(e) =>
+                      setMinScore(Number(e.target.value) / 100)
+                    }
+                    className="w-full h-1.5 bg-border rounded-full appearance-none cursor-pointer accent-accent"
+                  />
+                  <div className="flex justify-between text-[9px] text-muted-foreground">
+                    <span>0%</span>
+                    <span>100%</span>
+                  </div>
+                </div>
+
+                {/* Limit Dropdown */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-foreground-secondary uppercase tracking-widest">
+                    Results Limit
+                  </label>
+                  <select
+                    value={limit}
+                    onChange={(e) => setLimit(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-muted/50 border border-border rounded-xl text-xs font-semibold text-foreground outline-none focus:border-accent transition-colors cursor-pointer"
+                  >
+                    {[10, 25, 50, 100].map((v) => (
+                      <option key={v} value={v}>
+                        {v} results
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Search */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-foreground-secondary uppercase tracking-widest">
+                    Search Title
+                  </label>
+                  <div className="relative">
+                    <Search
+                      size={13}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground-secondary"
+                    />
+                    <input
+                      type="text"
+                      value={searchText}
+                      onChange={(e) => setSearchText(e.target.value)}
+                      placeholder="Filter by job title…"
+                      className="w-full pl-9 pr-3 py-2 bg-muted/50 border border-border rounded-xl text-xs font-semibold text-foreground outline-none focus:border-accent transition-colors"
+                    />
+                  </div>
+                </div>
+
+                {/* Site Filter */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-foreground-secondary uppercase tracking-widest">
+                    Company
+                  </label>
+                  <select
+                    value={siteFilter}
+                    onChange={(e) => setSiteFilter(e.target.value)}
+                    className="w-full px-3 py-2 bg-muted/50 border border-border rounded-xl text-xs font-semibold text-foreground outline-none focus:border-accent transition-colors cursor-pointer"
+                  >
+                    <option value="all">All Companies</option>
+                    {uniqueSites.map((s) => (
+                      <option key={s} value={s}>
+                        {capitalize(s)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* ── Job Cards Grid ─────────────────────────────────── */}
+            {isLoadingJobs ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <SkeletonCard key={i} />
+                ))}
+              </div>
+            ) : filteredJobs.length === 0 ? (
+              /* Empty State */
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex flex-col items-center justify-center py-20 text-center"
+              >
+                <div className="w-20 h-20 rounded-3xl bg-muted flex items-center justify-center mb-5">
+                  <Briefcase
+                    size={36}
+                    className="text-foreground-secondary"
+                  />
+                </div>
+                <h3 className="text-lg font-black text-foreground mb-1">
+                  No jobs found yet
+                </h3>
+                <p className="text-xs text-foreground-secondary max-w-sm mb-5">
+                  Click &ldquo;Run Scrape Now&rdquo; to start discovering
+                  opportunities, or adjust your filters above.
+                </p>
+                <button
+                  onClick={handleRunScrape}
+                  disabled={isScraping}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-accent hover:bg-accent/90 text-white rounded-2xl text-xs font-black transition-all cursor-pointer disabled:opacity-50"
+                >
+                  <Zap size={14} />
+                  Run Scrape Now
+                </button>
+              </motion.div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filteredJobs.map((job, idx) => {
+                  const rel = getRelevanceInfo(job.relevance_score);
+                  return (
+                    <motion.div
+                      key={job.id}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        delay: idx * 0.05,
+                        duration: 0.35,
+                        ease: "easeOut",
+                      }}
+                      className="group bg-card/60 backdrop-blur-md border border-border rounded-2xl p-5 shadow-sm hover:border-accent/30 hover:shadow-md transition-all duration-300"
+                    >
+                      {/* Title & Company */}
+                      <h3 className="text-sm font-black text-foreground leading-snug mb-1 group-hover:text-accent transition-colors">
+                        {job.title}
+                      </h3>
+                      <p className="text-xs font-bold text-accent mb-3">
+                        {capitalize(job.site_name)}
+                      </p>
+
+                      {/* Location & Department */}
+                      <div className="flex flex-wrap gap-x-4 gap-y-1.5 mb-3">
+                        <span className="flex items-center gap-1 text-[11px] text-foreground-secondary">
+                          <MapPin size={12} className="text-accent/60" />
+                          {job.location}
+                        </span>
+                        {job.department && (
+                          <span className="flex items-center gap-1 text-[11px] text-foreground-secondary">
+                            <Building2
+                              size={12}
+                              className="text-accent/60"
+                            />
+                            {job.department}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Relevance Bar */}
+                      <div className="mb-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <span
+                            className={`text-[10px] font-bold uppercase tracking-wider ${rel.color}`}
+                          >
+                            {rel.label}
+                          </span>
+                          <span
+                            className={`text-[10px] font-black tabular-nums ${rel.color}`}
+                          >
+                            {Math.round(job.relevance_score * 100)}%
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full bg-border rounded-full overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: `${job.relevance_score * 100}%`,
+                            }}
+                            transition={{
+                              delay: idx * 0.05 + 0.3,
+                              duration: 0.6,
+                              ease: "easeOut",
+                            }}
+                            className={`h-full rounded-full ${rel.bg}`}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Timestamps */}
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 mb-4 text-[10px] text-muted-foreground">
+                        {job.posted_date && (
+                          <span className="flex items-center gap-1">
+                            <Clock size={10} />
+                            Posted {relativeTime(job.posted_date)}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1">
+                          <Radar size={10} />
+                          Found {relativeTime(job.discovered_at)}
+                        </span>
+                      </div>
+
+                      {/* Apply Button */}
+                      <a
+                        href={job.apply_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-accent/10 hover:bg-accent/20 border border-accent/20 hover:border-accent/40 text-accent text-[11px] font-bold rounded-xl transition-all duration-200"
+                      >
+                        Apply
+                        <ExternalLink size={11} />
+                      </a>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ── Scrape History Section ─────────────────────────── */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="bg-card/40 backdrop-blur-md border border-border rounded-2xl shadow-sm overflow-hidden"
+            >
+              {/* Collapsible Header */}
+              <button
+                onClick={() => setHistoryExpanded(!historyExpanded)}
+                className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <RefreshCw size={14} className="text-foreground-secondary" />
+                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+                    Scrape History
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-medium">
+                    ({runs.length} runs)
+                  </span>
+                </div>
+                <ChevronDown
+                  size={16}
+                  className={`text-foreground-secondary transition-transform duration-300 ${
+                    historyExpanded ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              <AnimatePresence>
+                {historyExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
+                    {isLoadingRuns ? (
+                      <div className="p-6 flex items-center justify-center">
+                        <Loader2
+                          size={20}
+                          className="animate-spin text-foreground-secondary"
+                        />
+                      </div>
+                    ) : runs.length === 0 ? (
+                      <div className="p-6 text-center text-xs text-foreground-secondary">
+                        No scrape runs recorded yet.
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-t border-border bg-muted/30">
+                              <th className="text-left px-4 py-2.5 font-bold text-foreground-secondary uppercase tracking-wider text-[10px]">
+                                Started At
+                              </th>
+                              <th className="text-left px-4 py-2.5 font-bold text-foreground-secondary uppercase tracking-wider text-[10px]">
+                                Duration
+                              </th>
+                              <th className="text-center px-4 py-2.5 font-bold text-foreground-secondary uppercase tracking-wider text-[10px]">
+                                Sites
+                              </th>
+                              <th className="text-center px-4 py-2.5 font-bold text-foreground-secondary uppercase tracking-wider text-[10px]">
+                                New Jobs
+                              </th>
+                              <th className="text-left px-4 py-2.5 font-bold text-foreground-secondary uppercase tracking-wider text-[10px]">
+                                Status
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {runs.map((run) => {
+                              const allSuccess =
+                                run.sites_succeeded ===
+                                run.sites_attempted;
+                              const hasErrors =
+                                run.errors !== null && run.errors !== "";
+                              const rowColor = hasErrors
+                                ? "border-l-2 border-l-rose-500/50"
+                                : allSuccess
+                                ? "border-l-2 border-l-emerald-500/50"
+                                : "border-l-2 border-l-amber-500/50";
+
+                              return (
+                                <React.Fragment key={run.id}>
+                                  <tr
+                                    className={`border-t border-border hover:bg-muted/20 transition-colors ${rowColor}`}
+                                  >
+                                    <td className="px-4 py-3 text-foreground font-medium whitespace-nowrap">
+                                      {formatDate(run.started_at)}
+                                    </td>
+                                    <td className="px-4 py-3 text-foreground-secondary font-medium tabular-nums whitespace-nowrap">
+                                      {formatDuration(
+                                        run.started_at,
+                                        run.finished_at
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-3 text-center">
+                                      <span
+                                        className={`font-bold tabular-nums ${
+                                          allSuccess
+                                            ? "text-emerald-400"
+                                            : "text-amber-400"
+                                        }`}
+                                      >
+                                        {run.sites_succeeded}
+                                      </span>
+                                      <span className="text-muted-foreground">
+                                        {" "}
+                                        / {run.sites_attempted}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-3 text-center font-bold text-foreground tabular-nums">
+                                      +{run.new_jobs_found}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                      {hasErrors ? (
+                                        <button
+                                          onClick={() =>
+                                            setExpandedErrorId(
+                                              expandedErrorId === run.id
+                                                ? null
+                                                : run.id
+                                            )
+                                          }
+                                          className="flex items-center gap-1 text-rose-400 hover:text-rose-300 font-bold transition-colors cursor-pointer"
+                                        >
+                                          <AlertTriangle size={12} />
+                                          Errors
+                                          <ChevronDown
+                                            size={12}
+                                            className={`transition-transform ${
+                                              expandedErrorId === run.id
+                                                ? "rotate-180"
+                                                : ""
+                                            }`}
+                                          />
+                                        </button>
+                                      ) : (
+                                        <span className="flex items-center gap-1 text-emerald-400 font-bold">
+                                          <CheckCircle2 size={12} />
+                                          Success
+                                        </span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                  {/* Error detail row */}
+                                  {hasErrors &&
+                                    expandedErrorId === run.id && (
+                                      <tr className="border-t border-border/50">
+                                        <td
+                                          colSpan={5}
+                                          className="px-6 py-3 bg-rose-500/5"
+                                        >
+                                          <div className="text-[11px] text-rose-300 font-mono leading-relaxed whitespace-pre-wrap">
+                                            {run.errors}
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+                                </React.Fragment>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          </div>
+        )}
+      </main>
+    </>
+  );
+}
