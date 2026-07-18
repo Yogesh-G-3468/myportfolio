@@ -224,6 +224,7 @@ export default function CareerScraperPage() {
   const [isLoadingSites, setIsLoadingSites] = useState(false);
   const [siteSearchText, setSiteSearchText] = useState("");
   const [activeSitesCount, setActiveSitesCount] = useState(0);
+  const [isBulkToggling, setIsBulkToggling] = useState(false);
 
   // Inline Site Editing States
   const [editingSiteId, setEditingSiteId] = useState<number | null>(null);
@@ -725,6 +726,48 @@ export default function CareerScraperPage() {
     } catch (err: any) {
       showToast(err.message || "Failed to update website details", "error");
       setIsSavingSiteEdits(false);
+    }
+  };
+
+  // Bulk enable/disable sites listed
+  const handleBulkToggle = async (activeState: boolean) => {
+    if (sites.length === 0) return;
+    
+    setIsBulkToggling(true);
+    showToast(`${activeState ? "Enabling" : "Disabling"} all listed sites...`, "success");
+
+    if (isDemoMode) {
+      setTimeout(() => {
+        const updatedDemoSites = demoSites.map((s) => {
+          const isMatched = sites.some((matched) => matched.id === s.id);
+          return isMatched ? { ...s, is_active: activeState } : s;
+        });
+        setDemoSites(updatedDemoSites);
+        setSites((prev) => prev.map((s) => ({ ...s, is_active: activeState })));
+        setIsBulkToggling(false);
+        showToast(`All listed sites have been ${activeState ? "enabled" : "disabled"} (Demo)`, "success");
+      }, 600);
+      return;
+    }
+
+    try {
+      const sitesToUpdate = sites.filter((s) => s.is_active !== activeState);
+
+      if (sitesToUpdate.length > 0) {
+        await Promise.all(
+          sitesToUpdate.map((s) =>
+            updateScraperSite(s.id, s.url, activeState, s.site_name)
+          )
+        );
+      }
+
+      setSites((prev) => prev.map((s) => ({ ...s, is_active: activeState })));
+      loadActiveSitesCount();
+      showToast(`All listed sites have been ${activeState ? "enabled" : "disabled"}`, "success");
+    } catch (err: any) {
+      showToast(err.message || "Failed to bulk update sites", "error");
+    } finally {
+      setIsBulkToggling(false);
     }
   };
 
@@ -1711,8 +1754,37 @@ export default function CareerScraperPage() {
                   )}
                 </div>
 
+                {/* Bulk Actions Row */}
+                <div className="flex items-center justify-between px-1 text-[10px] font-bold text-foreground-secondary">
+                  <span>{sites.length} site{sites.length !== 1 ? 's' : ''} listed</span>
+                  {isBulkToggling ? (
+                    <span className="flex items-center gap-1 text-accent animate-pulse">
+                      <Loader2 size={10} className="animate-spin" />
+                      Updating…
+                    </span>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleBulkToggle(true)}
+                        className="text-accent hover:text-accent/80 transition-colors cursor-pointer uppercase tracking-wider"
+                      >
+                        Enable All
+                      </button>
+                      <span className="text-border">|</span>
+                      <button
+                        type="button"
+                        onClick={() => handleBulkToggle(false)}
+                        className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer uppercase tracking-wider"
+                      >
+                        Disable All
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 {/* Scrollable Website List */}
-                <div className="space-y-2 max-h-[calc(100vh-270px)] overflow-y-auto pr-1 font-sans">
+                <div className="space-y-2 max-h-[calc(100vh-295px)] overflow-y-auto pr-1 font-sans">
                   {isLoadingSites ? (
                     <div className="py-12 flex flex-col items-center justify-center gap-2">
                       <Loader2
