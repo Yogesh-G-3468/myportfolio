@@ -26,6 +26,10 @@ import {
   RefreshCw,
   CheckCircle2,
   X,
+  Settings,
+  Plus,
+  Globe,
+  Check,
 } from "lucide-react";
 
 import {
@@ -39,11 +43,16 @@ import {
 import {
   ScraperJob,
   ScraperRun,
+  ScraperSite,
   fetchScraperJobs,
   fetchScraperRuns,
   triggerScrapeNow,
+  fetchScraperSites,
+  addScraperSite,
+  updateScraperSite,
   MOCK_SCRAPER_JOBS,
   MOCK_SCRAPER_RUNS,
+  MOCK_SCRAPER_SITES,
 } from "@/components/career-scraper/api";
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -133,7 +142,6 @@ const AnimatedNumber = ({
     const animate = (now: number) => {
       const elapsed = now - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      // ease-out quad
       const eased = 1 - (1 - progress) * (1 - progress);
       const current = start + diff * eased;
       setDisplayed(current);
@@ -184,34 +192,50 @@ export default function CareerScraperPage() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Mode
+  // Mode & Toast
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [toastMessage, setToastMessage] = useState<{
     text: string;
     type: "success" | "error";
   } | null>(null);
 
-  // Data
+  // Job/Run Data
   const [jobs, setJobs] = useState<ScraperJob[]>([]);
   const [runs, setRuns] = useState<ScraperRun[]>([]);
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
   const [isLoadingRuns, setIsLoadingRuns] = useState(false);
   const [isScraping, setIsScraping] = useState(false);
 
-  // Filters
+  // Filter States
   const [minScore, setMinScore] = useState(0.5);
   const [limit, setLimit] = useState(50);
   const [searchText, setSearchText] = useState("");
   const [siteFilter, setSiteFilter] = useState("all");
 
-  // UI
+  // Website Dictionary States
+  const [showSitesDrawer, setShowSitesDrawer] = useState(false);
+  const [demoSites, setDemoSites] = useState<ScraperSite[]>(MOCK_SCRAPER_SITES);
+  const [sites, setSites] = useState<ScraperSite[]>([]);
+  const [isLoadingSites, setIsLoadingSites] = useState(false);
+  const [siteSearchText, setSiteSearchText] = useState("");
+  const [activeSitesCount, setActiveSitesCount] = useState(0);
+
+  // Add Site Form States
+  const [newSiteName, setNewSiteName] = useState("");
+  const [newSiteUrl, setNewSiteUrl] = useState("");
+  const [newSiteActive, setNewSiteActive] = useState(true);
+  const [isAddingSite, setIsAddingSite] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  // Collapsible sections
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [expandedErrorId, setExpandedErrorId] = useState<number | null>(null);
 
   // Refs
   const autoRefreshRef = useRef<NodeJS.Timeout | null>(null);
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  // ── Mount & Auth ───────────────────────────────────────────────────
+  // ── Mount & Auth Setup ─────────────────────────────────────────────
 
   useEffect(() => {
     setMounted(true);
@@ -230,6 +254,7 @@ export default function CareerScraperPage() {
     return () => {
       window.removeEventListener("stratos-unauthorized", handleUnauthorized);
       if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
   }, []);
 
@@ -244,7 +269,7 @@ export default function CareerScraperPage() {
   const showToast = (text: string, type: "success" | "error") =>
     setToastMessage({ text, type });
 
-  // ── Data Fetching ──────────────────────────────────────────────────
+  // ── API Fetches ────────────────────────────────────────────────────
 
   const loadJobs = useCallback(
     async (ms: number = minScore, lm: number = limit) => {
@@ -290,10 +315,51 @@ export default function CareerScraperPage() {
     }
   }, [isDemoMode]);
 
+  // Load active sites count
+  const loadActiveSitesCount = useCallback(async () => {
+    if (isDemoMode) {
+      setActiveSitesCount(demoSites.filter((s) => s.is_active).length);
+      return;
+    }
+    try {
+      const activeSites = await fetchScraperSites("", true, 1000);
+      setActiveSitesCount(activeSites.length);
+    } catch (err) {
+      console.error("Failed to load active sites count", err);
+    }
+  }, [isDemoMode, demoSites]);
+
+  // Load sites for the manager
+  const loadSitesList = useCallback(
+    async (searchQuery: string = siteSearchText) => {
+      setIsLoadingSites(true);
+      if (isDemoMode) {
+        setTimeout(() => {
+          const filtered = demoSites.filter((site) =>
+            site.site_name.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+          setSites(filtered);
+          setIsLoadingSites(false);
+        }, 300);
+        return;
+      }
+      try {
+        const data = await fetchScraperSites(searchQuery, undefined, 100);
+        setSites(data);
+      } catch (err: any) {
+        showToast(err.message || "Failed to fetch scraper sites", "error");
+      } finally {
+        setIsLoadingSites(false);
+      }
+    },
+    [isDemoMode, demoSites, siteSearchText]
+  );
+
   const loadAllData = useCallback(() => {
     loadJobs();
     loadRuns();
-  }, [loadJobs, loadRuns]);
+    loadActiveSitesCount();
+  }, [loadJobs, loadRuns, loadActiveSitesCount]);
 
   // Load data when authenticated
   useEffect(() => {
@@ -302,12 +368,35 @@ export default function CareerScraperPage() {
     }
   }, [mounted, token, isDemoMode]);
 
-  // Re-fetch when filter params change
+  // Re-fetch jobs when filters shift
   useEffect(() => {
     if (mounted && (token || isDemoMode)) {
       loadJobs(minScore, limit);
     }
   }, [minScore, limit]);
+
+  // Sync active count in demo mode
+  useEffect(() => {
+    if (isDemoMode) {
+      setActiveSitesCount(demoSites.filter((s) => s.is_active).length);
+    }
+  }, [isDemoMode, demoSites]);
+
+  // Trigger site list search on text change (debounced)
+  useEffect(() => {
+    if (!mounted || !(token || isDemoMode)) return;
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      loadSitesList(siteSearchText);
+    }, 300);
+  }, [siteSearchText]);
+
+  // Fetch full list once drawer is opened
+  useEffect(() => {
+    if (showSitesDrawer && (token || isDemoMode)) {
+      loadSitesList("");
+    }
+  }, [showSitesDrawer]);
 
   // Auto-refresh every 5 minutes
   useEffect(() => {
@@ -371,6 +460,7 @@ export default function CareerScraperPage() {
     setToken(null);
     setJobs([]);
     setRuns([]);
+    setSites([]);
     showToast("Logged out", "success");
   };
 
@@ -411,6 +501,107 @@ export default function CareerScraperPage() {
     }
   };
 
+  // Toggle active state of a website
+  const handleToggleSite = async (site: ScraperSite) => {
+    const nextActive = !site.is_active;
+
+    // Optimistic UI updates
+    setSites((prev) =>
+      prev.map((s) => (s.id === site.id ? { ...s, is_active: nextActive } : s))
+    );
+
+    if (isDemoMode) {
+      setDemoSites((prev) =>
+        prev.map((s) => (s.id === site.id ? { ...s, is_active: nextActive } : s))
+      );
+      showToast(
+        `${capitalize(site.site_name)} is now ${
+          nextActive ? "Active" : "Inactive"
+        } (Demo)`,
+        "success"
+      );
+      return;
+    }
+
+    try {
+      await updateScraperSite(site.id, site.url, nextActive);
+      showToast(
+        `${capitalize(site.site_name)} has been ${
+          nextActive ? "enabled" : "disabled"
+        }`,
+        "success"
+      );
+      loadActiveSitesCount();
+    } catch (err: any) {
+      // Revert state on failure
+      setSites((prev) =>
+        prev.map((s) => (s.id === site.id ? { ...s, is_active: !nextActive } : s))
+      );
+      showToast(err.message || "Failed to update website status", "error");
+    }
+  };
+
+  // Add a new site to dictionary
+  const handleAddSite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSiteName.trim()) {
+      showToast("Please enter a company name", "error");
+      return;
+    }
+    if (!newSiteUrl.trim()) {
+      showToast("Please enter a career page URL", "error");
+      return;
+    }
+
+    setIsAddingSite(true);
+
+    if (isDemoMode) {
+      setTimeout(() => {
+        const newSite: ScraperSite = {
+          id: Math.max(...demoSites.map((s) => s.id), 0) + 1,
+          site_name: newSiteName.trim(),
+          url: newSiteUrl.trim(),
+          site_type: "html",
+          is_active: newSiteActive,
+          last_success: null,
+          fail_count: 0,
+        };
+        const updatedSites = [newSite, ...demoSites];
+        setDemoSites(updatedSites);
+        // Add to active sites list if looking at it
+        setSites((prev) => [newSite, ...prev]);
+
+        setIsAddingSite(false);
+        setNewSiteName("");
+        setNewSiteUrl("");
+        setShowAddForm(false);
+        showToast(
+          `Successfully registered ${newSiteName.trim()} in dictionary! (Demo)`,
+          "success"
+        );
+      }, 600);
+      return;
+    }
+
+    try {
+      const added = await addScraperSite(
+        newSiteName.trim(),
+        newSiteUrl.trim(),
+        newSiteActive
+      );
+      setSites((prev) => [added, ...prev]);
+      loadActiveSitesCount();
+      setIsAddingSite(false);
+      setNewSiteName("");
+      setNewSiteUrl("");
+      setShowAddForm(false);
+      showToast(`Successfully registered ${added.site_name}!`, "success");
+    } catch (err: any) {
+      showToast(err.message || "Failed to add website to dictionary", "error");
+      setIsAddingSite(false);
+    }
+  };
+
   // ── Derived Data ───────────────────────────────────────────────────
 
   const latestRun = runs.length > 0 ? runs[0] : null;
@@ -420,7 +611,7 @@ export default function CareerScraperPage() {
       ? jobs.reduce((sum, j) => sum + j.relevance_score, 0) / jobs.length
       : 0;
 
-  // Client-side filters
+  // Unique sites in job lists for filter dropdown
   const uniqueSites = Array.from(new Set(jobs.map((j) => j.site_name))).sort();
   const filteredJobs = jobs.filter((j) => {
     if (siteFilter !== "all" && j.site_name !== siteFilter) return false;
@@ -442,14 +633,15 @@ export default function CareerScraperPage() {
     <>
       <Navbar />
       <main className="min-h-screen pt-24 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto flex flex-col gap-6">
-        {/* ── Toast ─────────────────────────────────────────────── */}
+        
+        {/* ── Toast Notifications ───────────────────────────────── */}
         <AnimatePresence>
           {toastMessage && (
             <motion.div
               initial={{ opacity: 0, y: -20, x: "-50%" }}
               animate={{ opacity: 1, y: 0, x: "-50%" }}
               exit={{ opacity: 0, y: -20, x: "-50%" }}
-              className={`fixed top-20 left-1/2 z-[60] px-5 py-3 rounded-2xl shadow-xl border text-xs font-bold flex items-center gap-2 ${
+              className={`fixed top-20 left-1/2 z-[10005] px-5 py-3 rounded-2xl shadow-xl border text-xs font-bold flex items-center gap-2 ${
                 toastMessage.type === "success"
                   ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
                   : "bg-rose-500/15 border-rose-500/30 text-rose-400"
@@ -471,7 +663,7 @@ export default function CareerScraperPage() {
           )}
         </AnimatePresence>
 
-        {/* ── Header Bar ────────────────────────────────────────── */}
+        {/* ── Header ────────────────────────────────────────────── */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-card/40 backdrop-blur-md border border-border p-5 rounded-3xl shadow-sm">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -629,8 +821,17 @@ export default function CareerScraperPage() {
              AUTHENTICATED DASHBOARD
              ══════════════════════════════════════════════════════ */
           <div className="flex flex-col gap-6">
-            {/* ── Run Scrape Button ─────────────────────────────── */}
-            <div className="flex justify-end">
+            
+            {/* ── Control Row (Manage Sites & Run Scrape) ───────── */}
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowSitesDrawer(true)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-black bg-card border border-border hover:bg-muted text-foreground transition-all duration-200 cursor-pointer shadow-sm active:scale-[0.97]"
+              >
+                <Settings size={14} className="text-foreground-secondary" />
+                Manage Sites
+              </button>
+
               <button
                 onClick={handleRunScrape}
                 disabled={isScraping}
@@ -674,9 +875,9 @@ export default function CareerScraperPage() {
                   suffix: "",
                 },
                 {
-                  label: "Sites Monitored",
-                  value: latestRun?.sites_attempted ?? 0,
-                  icon: <Target size={16} className="text-blue-400" />,
+                  label: "Active Sites",
+                  value: activeSitesCount,
+                  icon: <Globe size={16} className="text-blue-400" />,
                   suffix: "",
                 },
                 {
@@ -708,7 +909,7 @@ export default function CareerScraperPage() {
                 </motion.div>
               ))}
 
-              {/* Last Scrape — special card */}
+              {/* Last Scrape Card */}
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1141,6 +1342,256 @@ export default function CareerScraperPage() {
           </div>
         )}
       </main>
+
+      {/* ══════════════════════════════════════════════════════════════════
+         WEBSITE DICTIONARY MANAGER DRAWER (SLIDE-OVER)
+         ══════════════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {showSitesDrawer && (
+          <div className="fixed inset-0 z-[10000] flex justify-end">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowSitesDrawer(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer"
+            />
+
+            {/* Slide-out Panel */}
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative w-full max-w-md bg-background-elevated border-l border-border shadow-2xl h-full flex flex-col z-10"
+            >
+              {/* Header */}
+              <div className="p-5 border-b border-border flex items-center justify-between bg-card/25 backdrop-blur-md">
+                <div>
+                  <h2 className="text-base font-extrabold text-foreground flex items-center gap-2">
+                    <Globe size={16} className="text-accent" />
+                    Manage Sites
+                  </h2>
+                  <p className="text-[10px] text-foreground-secondary mt-0.5">
+                    Enable, disable, or register career pages for hourly scraping.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowSitesDrawer(false)}
+                  className="p-1.5 text-foreground-secondary hover:text-foreground hover:bg-muted rounded-xl transition-all cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Drawer Content */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                
+                {/* ── Add Site Collapsible Form ─────────────────── */}
+                <div className="border border-border/80 bg-muted/20 rounded-2xl overflow-hidden shadow-sm">
+                  <button
+                    onClick={() => setShowAddForm(!showAddForm)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-muted/40 hover:bg-muted/70 transition-colors text-xs font-bold text-foreground cursor-pointer"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Plus size={14} className="text-accent" />
+                      Register New Website
+                    </span>
+                    <ChevronDown
+                      size={14}
+                      className={`text-foreground-secondary transition-transform ${
+                        showAddForm ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+
+                  <AnimatePresence>
+                    {showAddForm && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.25 }}
+                        className="overflow-hidden"
+                      >
+                        <form
+                          onSubmit={handleAddSite}
+                          className="p-4 space-y-3.5 border-t border-border/50 bg-card/10"
+                        >
+                          {/* Site Name Input */}
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-foreground-secondary uppercase tracking-widest">
+                              Company / Name
+                            </label>
+                            <input
+                              type="text"
+                              value={newSiteName}
+                              onChange={(e) => setNewSiteName(e.target.value)}
+                              placeholder="e.g., OpenAI"
+                              className="w-full px-3 py-2 bg-muted/40 border border-border focus:border-accent rounded-xl text-xs font-semibold outline-none transition-colors"
+                              required
+                            />
+                          </div>
+
+                          {/* Site URL Input */}
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-foreground-secondary uppercase tracking-widest">
+                              Career Page URL
+                            </label>
+                            <input
+                              type="url"
+                              value={newSiteUrl}
+                              onChange={(e) => setNewSiteUrl(e.target.value)}
+                              placeholder="https://openai.com/careers"
+                              className="w-full px-3 py-2 bg-muted/40 border border-border focus:border-accent rounded-xl text-xs font-semibold outline-none transition-colors"
+                              required
+                            />
+                          </div>
+
+                          {/* Active Toggle Switch */}
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="text-[10px] font-bold text-foreground-secondary uppercase tracking-widest">
+                              Active immediately
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setNewSiteActive(!newSiteActive)}
+                              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${
+                                newSiteActive ? "bg-accent" : "bg-muted"
+                              }`}
+                            >
+                              <span
+                                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${
+                                  newSiteActive ? "translate-x-4" : "translate-x-0"
+                                }`}
+                              />
+                            </button>
+                          </div>
+
+                          {/* Submit Button */}
+                          <button
+                            type="submit"
+                            disabled={isAddingSite}
+                            className="w-full py-2 bg-accent hover:bg-accent/90 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 active:scale-[0.98] cursor-pointer disabled:opacity-60"
+                          >
+                            {isAddingSite ? (
+                              <>
+                                <Loader2 size={13} className="animate-spin" />
+                                Adding website…
+                              </>
+                            ) : (
+                              <>
+                                <Check size={13} />
+                                Register Site
+                              </>
+                            )}
+                          </button>
+                        </form>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* ── Search Input ─────────────────────────────── */}
+                <div className="relative">
+                  <Search
+                    size={13}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground-secondary"
+                  />
+                  <input
+                    type="text"
+                    value={siteSearchText}
+                    onChange={(e) => setSiteSearchText(e.target.value)}
+                    placeholder="Search dictionary of 600+ companies…"
+                    className="w-full pl-9 pr-8 py-2 bg-muted/30 border border-border focus:border-accent rounded-xl text-xs font-semibold text-foreground outline-none transition-colors"
+                  />
+                  {siteSearchText && (
+                    <button
+                      onClick={() => setSiteSearchText("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-secondary hover:text-foreground"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                {/* ── Scrollable Website List ────────────────────── */}
+                <div className="space-y-2 max-h-[calc(100vh-270px)] overflow-y-auto pr-1">
+                  {isLoadingSites ? (
+                    <div className="py-12 flex flex-col items-center justify-center gap-2">
+                      <Loader2
+                        size={20}
+                        className="animate-spin text-accent"
+                      />
+                      <span className="text-[10px] text-foreground-secondary font-bold uppercase tracking-wider">
+                        Searching dictionary…
+                      </span>
+                    </div>
+                  ) : sites.length === 0 ? (
+                    <div className="py-12 text-center text-xs text-foreground-secondary">
+                      No matching websites found.
+                    </div>
+                  ) : (
+                    sites.map((site) => (
+                      <div
+                        key={site.id}
+                        className="flex items-center justify-between p-3.5 bg-card/30 border border-border/80 hover:border-accent/20 rounded-2xl transition-all duration-200 group"
+                      >
+                        <div className="space-y-0.5 max-w-[70%]">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-black text-foreground truncate">
+                              {site.site_name}
+                            </span>
+                            {site.site_type && (
+                              <span className="px-1.5 py-0.2 border border-border/60 bg-muted/60 text-muted-foreground text-[8px] font-bold uppercase tracking-wider rounded">
+                                {site.site_type}
+                              </span>
+                            )}
+                          </div>
+                          <a
+                            href={site.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-0.5 text-[10px] text-accent/80 hover:text-accent font-semibold transition-colors truncate max-w-full"
+                          >
+                            Visit careers page
+                            <ExternalLink size={8} />
+                          </a>
+                        </div>
+
+                        {/* Status Toggle Switch */}
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-[9px] font-black uppercase tracking-wider select-none ${
+                              site.is_active ? "text-accent" : "text-muted-foreground"
+                            }`}
+                          >
+                            {site.is_active ? "Active" : "Inactive"}
+                          </span>
+                          <button
+                            onClick={() => handleToggleSite(site)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${
+                              site.is_active ? "bg-accent" : "bg-muted"
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                site.is_active ? "translate-x-4" : "translate-x-0"
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

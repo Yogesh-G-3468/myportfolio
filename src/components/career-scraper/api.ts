@@ -24,6 +24,17 @@ export interface ScraperRun {
   errors: string | null;
 }
 
+export interface ScraperSite {
+  id: number;
+  site_name: string;
+  url: string;
+  site_type?: string;
+  api_pattern?: string | null;
+  last_success?: string | null;
+  fail_count?: number;
+  is_active: boolean;
+}
+
 // ── API Functions ──────────────────────────────────────────────────────
 
 export const fetchScraperJobs = async (
@@ -59,6 +70,66 @@ export const triggerScrapeNow = async (): Promise<{ status: string }> => {
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
     throw new Error(errorBody.detail || "Failed to trigger scrape");
+  }
+  return response.json();
+};
+
+export const fetchScraperSites = async (
+  search: string = "",
+  isActive?: boolean,
+  limit: number = 100,
+  skip: number = 0
+): Promise<ScraperSite[]> => {
+  const params = new URLSearchParams({
+    limit: limit.toString(),
+    skip: skip.toString(),
+  });
+  if (search) params.append("search", search);
+  if (isActive !== undefined) params.append("is_active", isActive.toString());
+
+  const response = await stratosFetch(`/scraper/sites?${params.toString()}`);
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.detail || "Failed to fetch scraper sites");
+  }
+  return response.json();
+};
+
+export const addScraperSite = async (
+  siteName: string,
+  url: string,
+  isActive: boolean = true
+): Promise<ScraperSite> => {
+  const response = await stratosFetch("/scraper/sites", {
+    method: "POST",
+    body: JSON.stringify({
+      site_name: siteName,
+      url,
+      is_active: isActive,
+    }),
+  });
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.detail || "Failed to add scraper site");
+  }
+  return response.json();
+};
+
+export const updateScraperSite = async (
+  siteId: number,
+  url: string,
+  isActive: boolean
+): Promise<ScraperSite> => {
+  const response = await stratosFetch(`/scraper/sites/${siteId}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      url,
+      is_active: isActive,
+    }),
+  });
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.detail || "Failed to update scraper site");
   }
   return response.json();
 };
@@ -223,5 +294,128 @@ export const MOCK_SCRAPER_RUNS: ScraperRun[] = [
     sites_succeeded: 8,
     new_jobs_found: 10,
     errors: null,
+  },
+];
+
+export const MOCK_SCRAPER_SITES: ScraperSite[] = [
+  {
+    id: 1,
+    site_name: "Stripe",
+    url: "https://stripe.com/jobs",
+    site_type: "api",
+    api_pattern: "https://api.stripe.com/v1/jobs",
+    last_success: "2026-07-18T10:00:00Z",
+    fail_count: 0,
+    is_active: true,
+  },
+  {
+    id: 2,
+    site_name: "Notion",
+    url: "https://notion.so/careers",
+    site_type: "html",
+    api_pattern: null,
+    last_success: "2026-07-18T10:00:00Z",
+    fail_count: 0,
+    is_active: true,
+  },
+  {
+    id: 3,
+    site_name: "Vercel",
+    url: "https://vercel.com/careers",
+    site_type: "api",
+    api_pattern: "https://boards-api.greenhouse.io/v1/boards/vercel/jobs",
+    last_success: "2026-07-18T10:00:00Z",
+    fail_count: 0,
+    is_active: true,
+  },
+  {
+    id: 4,
+    site_name: "Supabase",
+    url: "https://supabase.com/careers",
+    site_type: "api",
+    api_pattern: "https://boards-api.greenhouse.io/v1/boards/supabase/jobs",
+    last_success: "2026-07-18T10:00:00Z",
+    fail_count: 0,
+    is_active: true,
+  },
+  {
+    id: 5,
+    site_name: "Linear",
+    url: "https://linear.app/careers",
+    site_type: "html",
+    api_pattern: null,
+    last_success: "2026-07-18T10:00:00Z",
+    fail_count: 0,
+    is_active: true,
+  },
+  {
+    id: 6,
+    site_name: "Resend",
+    url: "https://resend.com/careers",
+    site_type: "html",
+    api_pattern: null,
+    last_success: "2026-07-18T10:00:00Z",
+    fail_count: 0,
+    is_active: true,
+  },
+  {
+    id: 7,
+    site_name: "Postman",
+    url: "https://postman.com/careers",
+    site_type: "html",
+    api_pattern: null,
+    last_success: "2026-07-18T09:00:00Z",
+    fail_count: 1,
+    is_active: false,
+  },
+  {
+    id: 8,
+    site_name: "Razorpay",
+    url: "https://razorpay.com/careers",
+    site_type: "html",
+    api_pattern: null,
+    last_success: "2026-07-18T06:00:00Z",
+    fail_count: 2,
+    is_active: false,
+  },
+  {
+    id: 9,
+    site_name: "Cloudflare",
+    url: "https://cloudflare.com/careers",
+    site_type: "api",
+    api_pattern: "https://boards-api.greenhouse.io/v1/boards/cloudflare/jobs",
+    last_success: "2026-07-18T10:00:00Z",
+    fail_count: 0,
+    is_active: true,
+  },
+  {
+    id: 10,
+    site_name: "Atlassian",
+    url: "https://atlassian.com/careers",
+    site_type: "api",
+    api_pattern: null,
+    last_success: "2026-07-18T10:00:00Z",
+    fail_count: 0,
+    is_active: true,
+  },
+  {
+    id: 11,
+    site_name: "OpenAI",
+    url: "https://openai.com/careers",
+    site_type: "html",
+    api_pattern: null,
+    last_success: null,
+    fail_count: 0,
+    is_active: false,
+  },
+  {
+    id: 12,
+    site_name: "Google",
+    url: "https://careers.google.com",
+    site_type: "api",
+    api_pattern: "https://careers.google.com/api/v1/jobs",
+    last_success: "2026-07-18T10:00:00Z",
+    fail_count: 0,
+    is_active: true,
   },
 ];
