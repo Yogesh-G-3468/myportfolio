@@ -30,6 +30,7 @@ import {
   Plus,
   Globe,
   Check,
+  Pencil,
 } from "lucide-react";
 
 import {
@@ -223,6 +224,12 @@ export default function CareerScraperPage() {
   const [isLoadingSites, setIsLoadingSites] = useState(false);
   const [siteSearchText, setSiteSearchText] = useState("");
   const [activeSitesCount, setActiveSitesCount] = useState(0);
+
+  // Inline Site Editing States
+  const [editingSiteId, setEditingSiteId] = useState<number | null>(null);
+  const [editSiteName, setEditSiteName] = useState("");
+  const [editSiteUrl, setEditSiteUrl] = useState("");
+  const [isSavingSiteEdits, setIsSavingSiteEdits] = useState(false);
 
   // Add Site Form States
   const [newSiteName, setNewSiteName] = useState("");
@@ -574,7 +581,7 @@ export default function CareerScraperPage() {
     }
 
     try {
-      await updateScraperSite(site.id, site.url, nextActive);
+      await updateScraperSite(site.id, site.url, nextActive, site.site_name);
       showToast(
         `${capitalize(site.site_name)} has been ${
           nextActive ? "enabled" : "disabled"
@@ -648,6 +655,76 @@ export default function CareerScraperPage() {
     } catch (err: any) {
       showToast(err.message || "Failed to add website to dictionary", "error");
       setIsAddingSite(false);
+    }
+  };
+
+  // Inline edit site triggers
+  const handleStartEdit = (site: ScraperSite) => {
+    setEditingSiteId(site.id);
+    setEditSiteName(site.site_name);
+    setEditSiteUrl(site.url);
+  };
+
+  const handleCancelSiteEdits = () => {
+    setEditingSiteId(null);
+    setEditSiteName("");
+    setEditSiteUrl("");
+  };
+
+  const handleSaveSiteEdits = async (site: ScraperSite) => {
+    if (!editSiteName.trim()) {
+      showToast("Company name cannot be empty", "error");
+      return;
+    }
+    if (!editSiteUrl.trim()) {
+      showToast("Career page URL cannot be empty", "error");
+      return;
+    }
+
+    setIsSavingSiteEdits(true);
+
+    if (isDemoMode) {
+      setTimeout(() => {
+        const updated = demoSites.map((s) =>
+          s.id === site.id
+            ? { ...s, site_name: editSiteName.trim(), url: editSiteUrl.trim() }
+            : s
+        );
+        setDemoSites(updated);
+        setSites((prev) =>
+          prev.map((s) =>
+            s.id === site.id
+              ? { ...s, site_name: editSiteName.trim(), url: editSiteUrl.trim() }
+              : s
+          )
+        );
+        setIsSavingSiteEdits(false);
+        setEditingSiteId(null);
+        showToast("Company details updated successfully (Demo)", "success");
+      }, 500);
+      return;
+    }
+
+    try {
+      await updateScraperSite(
+        site.id,
+        editSiteUrl.trim(),
+        site.is_active,
+        editSiteName.trim()
+      );
+      setSites((prev) =>
+        prev.map((s) =>
+          s.id === site.id
+            ? { ...s, site_name: editSiteName.trim(), url: editSiteUrl.trim() }
+            : s
+        )
+      );
+      showToast(`Successfully updated ${editSiteName.trim()}`, "success");
+      setIsSavingSiteEdits(false);
+      setEditingSiteId(null);
+    } catch (err: any) {
+      showToast(err.message || "Failed to update website details", "error");
+      setIsSavingSiteEdits(false);
     }
   };
 
@@ -1651,57 +1728,125 @@ export default function CareerScraperPage() {
                       No matching websites found.
                     </div>
                   ) : (
-                    sites.map((site) => (
-                      <div
-                        key={site.id}
-                        className="flex items-center justify-between p-3.5 bg-card/30 border border-border/80 hover:border-accent/20 rounded-2xl transition-all duration-200 group"
-                      >
-                        <div className="space-y-0.5 max-w-[70%]">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-black text-foreground truncate">
-                              {site.site_name}
-                            </span>
-                            {site.site_type && (
-                              <span className="px-1.5 py-0.2 border border-border/60 bg-muted/60 text-muted-foreground text-[8px] font-bold uppercase tracking-wider rounded">
-                                {site.site_type}
-                              </span>
-                            )}
-                          </div>
-                          <a
-                            href={site.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-0.5 text-[10px] text-accent/80 hover:text-accent font-semibold transition-colors truncate max-w-full"
-                          >
-                            Visit careers page
-                            <ExternalLink size={8} />
-                          </a>
-                        </div>
+                    sites.map((site) => {
+                      const isEditing = editingSiteId === site.id;
 
-                        {/* Status Toggle Switch */}
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`text-[9px] font-black uppercase tracking-wider select-none ${
-                              site.is_active ? "text-accent" : "text-muted-foreground"
-                            }`}
-                          >
-                            {site.is_active ? "Active" : "Inactive"}
-                          </span>
-                          <button
-                            onClick={() => handleToggleSite(site)}
-                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${
-                              site.is_active ? "bg-accent" : "bg-muted"
-                            }`}
-                          >
-                            <span
-                              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                site.is_active ? "translate-x-4" : "translate-x-0"
-                              }`}
-                            />
-                          </button>
+                      return (
+                        <div
+                          key={site.id}
+                          className="p-3.5 bg-card/30 border border-border/80 hover:border-accent/20 rounded-2xl transition-all duration-200"
+                        >
+                          {isEditing ? (
+                            <div className="space-y-3">
+                              {/* Inline Edit Inputs */}
+                              <div className="space-y-1">
+                                <label className="text-[9px] font-bold text-foreground-secondary uppercase tracking-widest block">
+                                  Company Name
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editSiteName}
+                                  onChange={(e) => setEditSiteName(e.target.value)}
+                                  className="w-full px-2.5 py-1.5 bg-muted border border-border rounded-xl text-xs font-semibold outline-none focus:border-accent transition-colors"
+                                  required
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[9px] font-bold text-foreground-secondary uppercase tracking-widest block">
+                                  Career Page URL
+                                </label>
+                                <input
+                                  type="url"
+                                  value={editSiteUrl}
+                                  onChange={(e) => setEditSiteUrl(e.target.value)}
+                                  className="w-full px-2.5 py-1.5 bg-muted border border-border rounded-xl text-xs font-semibold outline-none focus:border-accent transition-colors"
+                                  required
+                                />
+                              </div>
+
+                              {/* Edit Action Row */}
+                              <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/40">
+                                <button
+                                  type="button"
+                                  onClick={handleCancelSiteEdits}
+                                  className="px-2.5 py-1 border border-border/80 hover:bg-muted text-[10px] font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                                  title="Cancel"
+                                >
+                                  <X size={10} />
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveSiteEdits(site)}
+                                  disabled={isSavingSiteEdits}
+                                  className="px-2.5 py-1 bg-accent hover:bg-accent/90 text-white text-[10px] font-black rounded-lg transition-all flex items-center gap-1 cursor-pointer disabled:opacity-60"
+                                  title="Save Edits"
+                                >
+                                  {isSavingSiteEdits ? (
+                                    <Loader2 size={10} className="animate-spin" />
+                                  ) : (
+                                    <Check size={10} />
+                                  )}
+                                  Save
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            /* Unedited View */
+                            <div className="flex items-center justify-between">
+                              <div className="space-y-0.5 max-w-[60%]">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-black text-foreground truncate">
+                                    {site.site_name}
+                                  </span>
+                                  {site.site_type && (
+                                    <span className="px-1.5 py-0.2 border border-border/60 bg-muted/60 text-muted-foreground text-[8px] font-bold uppercase tracking-wider rounded">
+                                      {site.site_type}
+                                    </span>
+                                  )}
+                                </div>
+                                <a
+                                  href={site.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-0.5 text-[10px] text-accent/80 hover:text-accent font-semibold transition-colors truncate max-w-full"
+                                >
+                                  Visit careers page
+                                  <ExternalLink size={8} />
+                                </a>
+                              </div>
+
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                {/* Edit pencil button */}
+                                <button
+                                  onClick={() => handleStartEdit(site)}
+                                  className="p-1 text-foreground-secondary hover:text-foreground hover:bg-muted rounded-lg transition-all cursor-pointer"
+                                  title="Edit Website"
+                                >
+                                  <Pencil size={11} />
+                                </button>
+
+                                {/* Active Toggle Switch */}
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    onClick={() => handleToggleSite(site)}
+                                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${
+                                      site.is_active ? "bg-accent" : "bg-muted"
+                                    }`}
+                                  >
+                                    <span
+                                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${
+                                        site.is_active ? "translate-x-4" : "translate-x-0"
+                                      }`}
+                                    />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
 
