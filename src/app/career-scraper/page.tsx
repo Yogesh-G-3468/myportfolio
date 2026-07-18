@@ -2043,37 +2043,8 @@ export default function CareerScraperPage() {
                         transition={{ duration: 0.25 }}
                         className="overflow-hidden"
                       >
-                        <div className="p-4 space-y-3 border-t border-border/50 bg-card/10">
-                          <p className="text-[10px] text-foreground-secondary leading-relaxed font-medium">
-                            These companies are polled directly via their ATS API (Greenhouse, Lever, Ashby, Workday) every hour — no browser required. New jobs trigger instant Telegram alerts.
-                          </p>
-                          <div className="overflow-x-auto rounded-xl border border-border/85 bg-card/45">
-                            <table className="w-full text-left text-[10px]">
-                              <thead>
-                                <tr className="bg-muted/50 border-b border-border/80">
-                                  <th className="px-3 py-2 font-black text-foreground-secondary uppercase tracking-wider">Company</th>
-                                  <th className="px-3 py-2 font-black text-foreground-secondary uppercase tracking-wider">ATS Platform</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {[
-                                  { name: "Stripe", platform: "Greenhouse" },
-                                  { name: "Spotify", platform: "Lever" },
-                                  { name: "Vercel", platform: "Greenhouse" },
-                                  { name: "Supabase", platform: "Greenhouse" },
-                                  { name: "Cloudflare", platform: "Greenhouse" },
-                                ].map((source) => (
-                                  <tr key={source.name} className="border-b border-border/40 last:border-none hover:bg-muted/30 transition-colors">
-                                    <td className="px-3 py-2 text-foreground font-semibold">{source.name}</td>
-                                    <td className="px-3 py-2 text-foreground-secondary font-medium">{source.platform}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                          <p className="text-[9px] text-muted-foreground italic leading-normal">
-                            * To add more companies to the ATS polling list, edit <code className="font-mono text-accent bg-accent-light/50 px-1 py-0.2 rounded">app/scraper/firstdips/sources.yaml</code> on the server.
-                          </p>
+                        <div className="p-4 border-t border-border/50 bg-card/10 text-[11px] text-foreground-secondary leading-relaxed font-semibold">
+                          Direct ATS Polling (FirstDips): Stripe, Spotify, Figma, OpenAI, and HashiCorp are polled directly via their APIs (Greenhouse/Lever) every hour.
                         </div>
                       </motion.div>
                     )}
@@ -2298,75 +2269,10 @@ export default function CareerScraperPage() {
                   </select>
                 </div>
 
-                {/* 6. Telegram Alerts Status (Modal Footer Sub-section) */}
-                <div className="mt-4 pt-4 border-t border-border/85 font-sans space-y-3 text-left">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold text-foreground">
-                        🔔 Telegram Alerts
-                      </span>
-                    </div>
-                    {telegramConfigured ? (
-                      <span className="px-2.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-[9px] font-black uppercase tracking-wider">
-                        ✅ Configured
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg text-[9px] font-black uppercase tracking-wider">
-                        ⚠ Not configured
-                      </span>
-                    )}
-                  </div>
-
-                  <div className={`p-3 rounded-2xl border text-[10px] font-semibold leading-relaxed ${
-                    telegramConfigured 
-                      ? "bg-emerald-500/5 border-emerald-500/10 text-emerald-300/90" 
-                      : "bg-rose-500/5 border-rose-500/10 text-rose-300/90"
-                  }`}>
-                    {telegramConfigured 
-                      ? "Alerts will be sent automatically to your Telegram channel for new matching jobs."
-                      : "Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in your .env file to enable push alerts."
-                    }
-                  </div>
-
-                  {/* Collapsible Setup Guide */}
-                  <div className="border border-border/80 bg-muted/10 rounded-xl overflow-hidden shadow-sm">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setShowTelegramSetup(!showTelegramSetup);
-                      }}
-                      className="w-full flex items-center justify-between px-3 py-2 hover:bg-muted/40 transition-colors text-[10px] font-bold text-foreground-secondary cursor-pointer"
-                    >
-                      <span>How to set up Telegram push alerts</span>
-                      <ChevronDown
-                        size={12}
-                        className={`text-foreground-secondary transition-transform ${
-                          showTelegramSetup ? "rotate-180" : ""
-                        }`}
-                      />
-                    </button>
-
-                    <AnimatePresence>
-                      {showTelegramSetup && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="p-3 border-t border-border/50 space-y-2 text-[10px] text-foreground-secondary leading-normal bg-card/5">
-                            <ol className="list-decimal list-inside space-y-1.5 font-medium">
-                              <li>Message <code className="font-mono text-accent bg-accent-light/50 px-1 py-0.2 rounded">@BotFather</code> on Telegram to create your bot and receive your <code className="font-mono text-accent">TELEGRAM_BOT_TOKEN</code>.</li>
-                              <li>Message <code className="font-mono text-accent bg-accent-light/50 px-1 py-0.2 rounded">@userinfobot</code> on Telegram to retrieve your <code className="font-mono text-accent">TELEGRAM_CHAT_ID</code>.</li>
-                              <li>Add both variables to your backend host configuration <code className="font-mono text-accent">.env</code> file.</li>
-                              <li>Restart the backend server to apply the changes. Alerts will begin firing automatically.</li>
-                            </ol>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                {/* Telegram Alerts Setup Tooltip Info Block */}
+                <div className="mt-4 pt-4 border-t border-border/85 text-left">
+                  <div className="p-3 bg-muted/40 border border-border/80 rounded-2xl text-[11px] text-foreground-secondary leading-relaxed font-semibold">
+                    🔔 <span className="text-foreground">Telegram Alerts:</span> To receive instant notifications when new matching jobs are discovered, ensure <code className="font-mono text-accent bg-accent-light/50 px-1 py-0.2 rounded">TELEGRAM_BOT_TOKEN</code> and <code className="font-mono text-accent bg-accent-light/50 px-1 py-0.2 rounded">TELEGRAM_CHAT_ID</code> are set in your backend <code className="font-mono text-foreground">.env</code> file.
                   </div>
                 </div>
 
