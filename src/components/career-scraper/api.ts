@@ -127,18 +127,15 @@ export const updateScraperSite = async (
   siteId: number,
   url: string,
   isActive: boolean,
-  siteName?: string
+  siteName: string
 ): Promise<ScraperSite> => {
-  const body: Record<string, any> = {
-    url,
-    is_active: isActive,
-  };
-  if (siteName) {
-    body.site_name = siteName;
-  }
   const response = await stratosFetch(`/scraper/sites/${siteId}`, {
     method: "PUT",
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      site_name: siteName,
+      url,
+      is_active: isActive,
+    }),
   });
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
