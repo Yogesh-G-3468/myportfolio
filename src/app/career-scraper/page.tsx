@@ -44,15 +44,19 @@ import {
   ScraperJob,
   ScraperRun,
   ScraperSite,
+  ScraperPreferences,
   fetchScraperJobs,
   fetchScraperRuns,
   triggerScrapeNow,
   fetchScraperSites,
   addScraperSite,
   updateScraperSite,
+  fetchScraperPreferences,
+  updateScraperPreferences,
   MOCK_SCRAPER_JOBS,
   MOCK_SCRAPER_RUNS,
   MOCK_SCRAPER_SITES,
+  MOCK_SCRAPER_PREFERENCES,
 } from "@/components/career-scraper/api";
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -227,6 +231,22 @@ export default function CareerScraperPage() {
   const [isAddingSite, setIsAddingSite] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
 
+  // Scraper Preferences States
+  const [showPrefModal, setShowPrefModal] = useState(false);
+  const [demoPreferences, setDemoPreferences] = useState<ScraperPreferences>(
+    MOCK_SCRAPER_PREFERENCES
+  );
+  const [prefRoles, setPrefRoles] = useState<string[]>([]);
+  const [prefLocations, setPrefLocations] = useState<string[]>([]);
+  const [prefExperience, setPrefExperience] = useState("");
+  const [prefMinScore, setPrefMinScore] = useState(0.5);
+  const [prefInterval, setPrefInterval] = useState(1);
+  const [isSavingPrefs, setIsSavingPrefs] = useState(false);
+  
+  // Tag Inputs
+  const [newRoleInput, setNewRoleInput] = useState("");
+  const [newLocInput, setNewLocInput] = useState("");
+
   // Collapsible sections
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [expandedErrorId, setExpandedErrorId] = useState<number | null>(null);
@@ -329,6 +349,28 @@ export default function CareerScraperPage() {
     }
   }, [isDemoMode, demoSites]);
 
+  // Load candidate search preferences
+  const loadPreferencesData = useCallback(async () => {
+    if (isDemoMode) {
+      setPrefRoles(demoPreferences.roles);
+      setPrefLocations(demoPreferences.locations);
+      setPrefExperience(demoPreferences.experience_range);
+      setPrefMinScore(demoPreferences.min_relevance_score);
+      setPrefInterval(demoPreferences.scrape_interval_hours);
+      return;
+    }
+    try {
+      const data = await fetchScraperPreferences();
+      setPrefRoles(data.roles);
+      setPrefLocations(data.locations);
+      setPrefExperience(data.experience_range);
+      setPrefMinScore(data.min_relevance_score);
+      setPrefInterval(data.scrape_interval_hours);
+    } catch (err) {
+      console.error("Failed to load scraper preferences", err);
+    }
+  }, [isDemoMode, demoPreferences]);
+
   // Load sites for the manager
   const loadSitesList = useCallback(
     async (searchQuery: string = siteSearchText) => {
@@ -359,7 +401,8 @@ export default function CareerScraperPage() {
     loadJobs();
     loadRuns();
     loadActiveSitesCount();
-  }, [loadJobs, loadRuns, loadActiveSitesCount]);
+    loadPreferencesData();
+  }, [loadJobs, loadRuns, loadActiveSitesCount, loadPreferencesData]);
 
   // Load data when authenticated
   useEffect(() => {
@@ -397,6 +440,13 @@ export default function CareerScraperPage() {
       loadSitesList("");
     }
   }, [showSitesDrawer]);
+
+  // Refresh preferences state when modal is opened
+  useEffect(() => {
+    if (showPrefModal && (token || isDemoMode)) {
+      loadPreferencesData();
+    }
+  }, [showPrefModal]);
 
   // Auto-refresh every 5 minutes
   useEffect(() => {
@@ -568,7 +618,6 @@ export default function CareerScraperPage() {
         };
         const updatedSites = [newSite, ...demoSites];
         setDemoSites(updatedSites);
-        // Add to active sites list if looking at it
         setSites((prev) => [newSite, ...prev]);
 
         setIsAddingSite(false);
@@ -602,6 +651,75 @@ export default function CareerScraperPage() {
     }
   };
 
+  // Save Scraper Preferences
+  const handleSavePreferences = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingPrefs(true);
+
+    const payload: ScraperPreferences = {
+      roles: prefRoles,
+      locations: prefLocations,
+      experience_range: prefExperience,
+      min_relevance_score: prefMinScore,
+      scrape_interval_hours: prefInterval,
+    };
+
+    if (isDemoMode) {
+      setTimeout(() => {
+        setDemoPreferences(payload);
+        setIsSavingPrefs(false);
+        setShowPrefModal(false);
+        showToast("Search preferences successfully saved! (Demo)", "success");
+      }, 600);
+      return;
+    }
+
+    try {
+      await updateScraperPreferences(payload);
+      showToast("Search preferences successfully updated!", "success");
+      setIsSavingPrefs(false);
+      setShowPrefModal(false);
+    } catch (err: any) {
+      showToast(err.message || "Failed to save preferences", "error");
+      setIsSavingPrefs(false);
+    }
+  };
+
+  // Add tag handlers
+  const handleAddRole = () => {
+    const val = newRoleInput.trim();
+    if (val && !prefRoles.includes(val)) {
+      setPrefRoles([...prefRoles, val]);
+      setNewRoleInput("");
+    }
+  };
+
+  const handleAddLocation = () => {
+    const val = newLocInput.trim();
+    if (val && !prefLocations.includes(val)) {
+      setPrefLocations([...prefLocations, val]);
+      setNewLocInput("");
+    }
+  };
+
+  const handleRemoveRole = (role: string) => {
+    setPrefRoles(prefRoles.filter((r) => r !== role));
+  };
+
+  const handleRemoveLocation = (loc: string) => {
+    setPrefLocations(prefLocations.filter((l) => l !== loc));
+  };
+
+  const handleKeyDownTag = (
+    e: React.KeyboardEvent,
+    action: () => void
+  ) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      action();
+    }
+  };
+
   // ── Derived Data ───────────────────────────────────────────────────
 
   const latestRun = runs.length > 0 ? runs[0] : null;
@@ -611,7 +729,6 @@ export default function CareerScraperPage() {
       ? jobs.reduce((sum, j) => sum + j.relevance_score, 0) / jobs.length
       : 0;
 
-  // Unique sites in job lists for filter dropdown
   const uniqueSites = Array.from(new Set(jobs.map((j) => j.site_name))).sort();
   const filteredJobs = jobs.filter((j) => {
     if (siteFilter !== "all" && j.site_name !== siteFilter) return false;
@@ -822,26 +939,33 @@ export default function CareerScraperPage() {
              ══════════════════════════════════════════════════════ */
           <div className="flex flex-col gap-6">
             
-            {/* ── Control Row (Manage Sites & Run Scrape) ───────── */}
-            <div className="flex justify-end gap-3">
+            {/* ── Control Row ───────────────────────────────────── */}
+            <div className="flex justify-end gap-3 flex-wrap">
               <button
                 onClick={() => setShowSitesDrawer(true)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-black bg-card border border-border hover:bg-muted text-foreground transition-all duration-200 cursor-pointer shadow-sm active:scale-[0.97]"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black bg-card border border-border hover:bg-muted text-foreground transition-all duration-200 cursor-pointer shadow-sm active:scale-[0.97]"
+              >
+                <Globe size={14} className="text-foreground-secondary" />
+                Manage Sites
+              </button>
+
+              <button
+                onClick={() => setShowPrefModal(true)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black bg-card border border-border hover:bg-muted text-foreground transition-all duration-200 cursor-pointer shadow-sm active:scale-[0.97]"
               >
                 <Settings size={14} className="text-foreground-secondary" />
-                Manage Sites
+                Configure Preferences
               </button>
 
               <button
                 onClick={handleRunScrape}
                 disabled={isScraping}
-                className={`relative flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-black transition-all active:scale-[0.97] cursor-pointer disabled:cursor-wait ${
+                className={`relative flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black transition-all active:scale-[0.97] cursor-pointer disabled:cursor-wait ${
                   isScraping
                     ? "bg-accent/60 text-white/80"
                     : "bg-accent hover:bg-accent/90 text-white shadow-lg shadow-accent/20"
                 }`}
               >
-                {/* Pulse ring when idle */}
                 {!isScraping && (
                   <span className="absolute inset-0 rounded-2xl animate-ping bg-accent/20 pointer-events-none" />
                 )}
@@ -1349,7 +1473,6 @@ export default function CareerScraperPage() {
       <AnimatePresence>
         {showSitesDrawer && (
           <div className="fixed inset-0 z-[10000] flex justify-end">
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.5 }}
@@ -1358,7 +1481,6 @@ export default function CareerScraperPage() {
               className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer"
             />
 
-            {/* Slide-out Panel */}
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
@@ -1388,7 +1510,7 @@ export default function CareerScraperPage() {
               {/* Drawer Content */}
               <div className="flex-1 overflow-y-auto p-5 space-y-5">
                 
-                {/* ── Add Site Collapsible Form ─────────────────── */}
+                {/* Add Site Collapsible Form */}
                 <div className="border border-border/80 bg-muted/20 rounded-2xl overflow-hidden shadow-sm">
                   <button
                     onClick={() => setShowAddForm(!showAddForm)}
@@ -1419,7 +1541,6 @@ export default function CareerScraperPage() {
                           onSubmit={handleAddSite}
                           className="p-4 space-y-3.5 border-t border-border/50 bg-card/10"
                         >
-                          {/* Site Name Input */}
                           <div className="space-y-1">
                             <label className="text-[9px] font-bold text-foreground-secondary uppercase tracking-widest">
                               Company / Name
@@ -1434,7 +1555,6 @@ export default function CareerScraperPage() {
                             />
                           </div>
 
-                          {/* Site URL Input */}
                           <div className="space-y-1">
                             <label className="text-[9px] font-bold text-foreground-secondary uppercase tracking-widest">
                               Career Page URL
@@ -1449,7 +1569,6 @@ export default function CareerScraperPage() {
                             />
                           </div>
 
-                          {/* Active Toggle Switch */}
                           <div className="flex items-center justify-between pt-1">
                             <span className="text-[10px] font-bold text-foreground-secondary uppercase tracking-widest">
                               Active immediately
@@ -1469,7 +1588,6 @@ export default function CareerScraperPage() {
                             </button>
                           </div>
 
-                          {/* Submit Button */}
                           <button
                             type="submit"
                             disabled={isAddingSite}
@@ -1493,7 +1611,7 @@ export default function CareerScraperPage() {
                   </AnimatePresence>
                 </div>
 
-                {/* ── Search Input ─────────────────────────────── */}
+                {/* Search Input */}
                 <div className="relative">
                   <Search
                     size={13}
@@ -1516,8 +1634,8 @@ export default function CareerScraperPage() {
                   )}
                 </div>
 
-                {/* ── Scrollable Website List ────────────────────── */}
-                <div className="space-y-2 max-h-[calc(100vh-270px)] overflow-y-auto pr-1">
+                {/* Scrollable Website List */}
+                <div className="space-y-2 max-h-[calc(100vh-270px)] overflow-y-auto pr-1 font-sans">
                   {isLoadingSites ? (
                     <div className="py-12 flex flex-col items-center justify-center gap-2">
                       <Loader2
@@ -1588,6 +1706,253 @@ export default function CareerScraperPage() {
                 </div>
 
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ══════════════════════════════════════════════════════════════════
+         CONFIGURE PREFERENCES MODAL (CENTERED DIALOG)
+         ══════════════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {showPrefModal && (
+          <div className="fixed inset-0 z-[10010] flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowPrefModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer"
+            />
+
+            {/* Modal Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="relative w-full max-w-lg bg-background-elevated border border-border rounded-3xl p-6 shadow-2xl z-10 max-h-[90vh] flex flex-col overflow-hidden"
+            >
+              <div className="absolute top-0 inset-x-0 h-[3px] bg-gradient-to-r from-accent/20 via-accent to-accent/20" />
+              
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-border/80">
+                <div className="flex items-center gap-2">
+                  <Settings className="text-accent w-5 h-5" />
+                  <h2 className="text-base font-extrabold text-foreground">
+                    Search & Scraper Preferences
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setShowPrefModal(false)}
+                  className="p-1.5 text-foreground-secondary hover:text-foreground hover:bg-muted rounded-xl transition-all cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Form Content */}
+              <form
+                onSubmit={handleSavePreferences}
+                className="flex-1 overflow-y-auto py-4 space-y-5 font-sans"
+              >
+                
+                {/* 1. Roles Tag Input */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-foreground-secondary uppercase tracking-widest block">
+                    Targeted Job Roles
+                  </label>
+                  
+                  {/* Tag List */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {prefRoles.length === 0 ? (
+                      <span className="text-[11px] text-muted-foreground italic">
+                        No roles added yet.
+                      </span>
+                    ) : (
+                      prefRoles.map((role) => (
+                        <span
+                          key={role}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-accent-light/50 border border-accent/25 text-accent text-[11px] font-bold rounded-lg"
+                        >
+                          {role}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveRole(role)}
+                            className="hover:text-foreground transition-colors cursor-pointer"
+                          >
+                            <X size={11} />
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Add Input */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newRoleInput}
+                      onChange={(e) => setNewRoleInput(e.target.value)}
+                      onKeyDown={(e) =>
+                        handleKeyDownTag(e, handleAddRole)
+                      }
+                      placeholder="Add role (e.g. Data Engineer)..."
+                      className="flex-1 px-3 py-1.5 bg-muted/40 border border-border focus:border-accent rounded-xl text-xs font-semibold outline-none transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddRole}
+                      className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground border border-border rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus size={12} />
+                      Add
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. Locations Tag Input */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-foreground-secondary uppercase tracking-widest block">
+                    Target Locations
+                  </label>
+                  
+                  {/* Tag List */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {prefLocations.length === 0 ? (
+                      <span className="text-[11px] text-muted-foreground italic">
+                        No locations added yet.
+                      </span>
+                    ) : (
+                      prefLocations.map((loc) => (
+                        <span
+                          key={loc}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-accent-light/50 border border-accent/25 text-accent text-[11px] font-bold rounded-lg"
+                        >
+                          {loc}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveLocation(loc)}
+                            className="hover:text-foreground transition-colors cursor-pointer"
+                          >
+                            <X size={11} />
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Add Input */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newLocInput}
+                      onChange={(e) => setNewLocInput(e.target.value)}
+                      onKeyDown={(e) =>
+                        handleKeyDownTag(e, handleAddLocation)
+                      }
+                      placeholder="Add location (e.g. Remote - India)..."
+                      className="flex-1 px-3 py-1.5 bg-muted/40 border border-border focus:border-accent rounded-xl text-xs font-semibold outline-none transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddLocation}
+                      className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground border border-border rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus size={12} />
+                      Add
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. Experience Range */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-foreground-secondary uppercase tracking-widest block">
+                    Required Experience Range
+                  </label>
+                  <input
+                    type="text"
+                    value={prefExperience}
+                    onChange={(e) => setPrefExperience(e.target.value)}
+                    placeholder="e.g. 2-6 years, Entry Level"
+                    className="w-full px-3 py-2 bg-muted/40 border border-border focus:border-accent rounded-xl text-xs font-semibold outline-none transition-colors"
+                    required
+                  />
+                </div>
+
+                {/* 4. Min Relevance Score */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-foreground-secondary uppercase tracking-widest block">
+                    Cutoff Relevance Score:{" "}
+                    <span className="text-accent font-black">
+                      {Math.round(prefMinScore * 100)}%
+                    </span>
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={prefMinScore * 100}
+                    onChange={(e) =>
+                      setPrefMinScore(Number(e.target.value) / 100)
+                    }
+                    className="w-full h-1.5 bg-border rounded-full appearance-none cursor-pointer accent-accent"
+                  />
+                  <div className="flex justify-between text-[9px] text-muted-foreground">
+                    <span>0% (Any job matches)</span>
+                    <span>100% (Strict match)</span>
+                  </div>
+                </div>
+
+                {/* 5. Scrape Interval Dropdown */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-foreground-secondary uppercase tracking-widest block">
+                    Auto-Scrape Frequency
+                  </label>
+                  <select
+                    value={prefInterval}
+                    onChange={(e) => setPrefInterval(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-muted/40 border border-border rounded-xl text-xs font-semibold text-foreground outline-none focus:border-accent transition-colors cursor-pointer"
+                  >
+                    {[1, 2, 6, 12, 24].map((hrs) => (
+                      <option key={hrs} value={hrs}>
+                        Scrape every {hrs} hour{hrs > 1 ? "s" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Submit Actions */}
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-border/80">
+                  <button
+                    type="button"
+                    onClick={() => setShowPrefModal(false)}
+                    className="px-4 py-2 border border-border/80 hover:bg-muted text-xs font-bold rounded-xl transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingPrefs}
+                    className="px-4 py-2 bg-accent hover:bg-accent/90 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 active:scale-[0.98] cursor-pointer disabled:opacity-60"
+                  >
+                    {isSavingPrefs ? (
+                      <>
+                        <Loader2 size={13} className="animate-spin" />
+                        Saving…
+                      </>
+                    ) : (
+                      <>
+                        <Check size={13} />
+                        Save Preferences
+                      </>
+                    )}
+                  </button>
+                </div>
+
+              </form>
+
             </motion.div>
           </div>
         )}

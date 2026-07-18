@@ -35,6 +35,14 @@ export interface ScraperSite {
   is_active: boolean;
 }
 
+export interface ScraperPreferences {
+  roles: string[];
+  locations: string[];
+  experience_range: string;
+  min_relevance_score: number;
+  scrape_interval_hours: number;
+}
+
 // ── API Functions ──────────────────────────────────────────────────────
 
 export const fetchScraperJobs = async (
@@ -130,6 +138,29 @@ export const updateScraperSite = async (
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
     throw new Error(errorBody.detail || "Failed to update scraper site");
+  }
+  return response.json();
+};
+
+export const fetchScraperPreferences = async (): Promise<ScraperPreferences> => {
+  const response = await stratosFetch("/scraper/preferences");
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.detail || "Failed to fetch scraper preferences");
+  }
+  return response.json();
+};
+
+export const updateScraperPreferences = async (
+  preferences: ScraperPreferences
+): Promise<ScraperPreferences> => {
+  const response = await stratosFetch("/scraper/preferences", {
+    method: "PUT",
+    body: JSON.stringify(preferences),
+  });
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.detail || "Failed to update scraper preferences");
   }
   return response.json();
 };
@@ -419,3 +450,11 @@ export const MOCK_SCRAPER_SITES: ScraperSite[] = [
     is_active: true,
   },
 ];
+
+export const MOCK_SCRAPER_PREFERENCES: ScraperPreferences = {
+  roles: ["Data Engineer", "Backend Engineer"],
+  locations: ["Chennai", "Remote - India"],
+  experience_range: "2-6 years",
+  min_relevance_score: 0.5,
+  scrape_interval_hours: 1,
+};
