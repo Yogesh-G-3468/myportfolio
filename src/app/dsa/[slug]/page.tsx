@@ -3,9 +3,20 @@ import path from "path";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Clock, BookOpen, ChevronRight } from "lucide-react";
-import { marked } from "marked";
+import { Marked } from "marked";
+import hljs from "highlight.js";
 import metadata from "@/content/dsa/metadata.json";
 import DsaCompleteButton from "@/components/DsaCompleteButton";
+
+const customMarked = new Marked({
+    renderer: {
+        code({ text, lang }: { text: string; lang?: string }) {
+            const validLanguage = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
+            const highlighted = hljs.highlight(text, { language: validLanguage }).value;
+            return `<pre><code class="hljs language-${validLanguage}">${highlighted}</code></pre>`;
+        }
+    }
+});
 
 interface PageProps {
     params: Promise<{ slug: string }>;
@@ -60,8 +71,8 @@ export default async function DsaPatternPage({ params }: PageProps) {
     const h1Regex = /^#\s+.+$/m;
     processedMarkdown = processedMarkdown.replace(h1Regex, "");
 
-    // Parse markdown to HTML
-    const htmlContent = await marked(processedMarkdown);
+    // Parse markdown to HTML using custom marked with syntax highlighting
+    const htmlContent = await customMarked.parse(processedMarkdown);
 
     // Calculate reading time (200 words per minute)
     const wordCount = rawMarkdown.split(/\s+/).length;
@@ -114,14 +125,14 @@ export default async function DsaPatternPage({ params }: PageProps) {
                         prose-h1:text-3xl prose-h1:mb-6 prose-h1:leading-tight
                         prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4 prose-h2:text-accent prose-h2:font-semibold
                         prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-3
-                        prose-p:text-foreground-secondary prose-p:leading-relaxed prose-p:mb-6 prose-p:text-base
+                        prose-p:text-foreground/90 prose-p:leading-relaxed prose-p:mb-8 prose-p:text-[17px] sm:prose-p:text-lg
                         prose-a:text-accent prose-a:no-underline hover:prose-a:underline prose-a:font-medium
-                        prose-strong:text-foreground prose-strong:font-semibold
+                        prose-strong:text-foreground prose-strong:font-bold
                         prose-ul:my-6 prose-ul:list-disc prose-ul:pl-6
                         prose-ol:my-6 prose-ol:list-decimal prose-ol:pl-6
-                        prose-li:text-foreground-secondary prose-li:mb-2 prose-li:leading-relaxed prose-li:marker:text-accent
-                        prose-code:text-accent prose-code:bg-accent/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-code:text-[13px]
-                        prose-pre:bg-background/80 prose-pre:border prose-pre:border-border prose-pre:rounded-2xl prose-pre:p-5 prose-pre:shadow-sm prose-pre:my-6
+                        prose-li:text-foreground/90 prose-li:text-[16px] sm:prose-li:text-[17px] prose-li:mb-3 prose-li:leading-relaxed prose-li:marker:text-accent
+                        prose-code:text-accent prose-code:bg-accent/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-code:text-[14px]
+                        prose-pre:bg-[#0d1117] prose-pre:border prose-pre:border-border prose-pre:rounded-2xl prose-pre:p-6 prose-pre:shadow-md prose-pre:my-8
                         prose-blockquote:border-l-4 prose-blockquote:border-accent prose-blockquote:bg-accent/5 prose-blockquote:py-3 prose-blockquote:px-6 prose-blockquote:rounded-r-xl prose-blockquote:not-italic prose-blockquote:my-6 prose-blockquote:text-base prose-blockquote:font-medium prose-blockquote:text-foreground-secondary
                         prose-img:rounded-xl prose-img:shadow-sm prose-img:border prose-img:border-border prose-img:my-8 prose-img:mx-auto prose-img:max-w-full
                         prose-hr:border-border prose-hr:my-10

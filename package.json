@@ -15,6 +15,7 @@
     "axios": "^1.13.5",
     "cloudinary": "^2.9.0",
     "framer-motion": "^12.29.2",
+    "highlight.js": "^11.11.1",
     "https-proxy-agent": "^7.0.6",
     "lucide-react": "^0.563.0",
     "marked": "^17.0.1",
