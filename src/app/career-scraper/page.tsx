@@ -31,6 +31,7 @@ import {
   Globe,
   Check,
   Pencil,
+  Trash2,
 } from "lucide-react";
 
 import {
@@ -52,6 +53,7 @@ import {
   fetchScraperSites,
   addScraperSite,
   updateScraperSite,
+  deleteScraperSite,
   fetchScraperPreferences,
   updateScraperPreferences,
   MOCK_SCRAPER_JOBS,
@@ -225,6 +227,8 @@ export default function CareerScraperPage() {
   const [siteSearchText, setSiteSearchText] = useState("");
   const [activeSitesCount, setActiveSitesCount] = useState(0);
   const [isBulkToggling, setIsBulkToggling] = useState(false);
+  const [siteStatusTab, setSiteStatusTab] = useState<"all" | "active" | "inactive">("all");
+  const [showAtsSources, setShowAtsSources] = useState(false);
 
   // Inline Site Editing States
   const [editingSiteId, setEditingSiteId] = useState<number | null>(null);
@@ -249,7 +253,9 @@ export default function CareerScraperPage() {
   const [prefExperience, setPrefExperience] = useState("");
   const [prefMinScore, setPrefMinScore] = useState(0.5);
   const [prefInterval, setPrefInterval] = useState(1);
+  const [telegramConfigured, setTelegramConfigured] = useState(false);
   const [isSavingPrefs, setIsSavingPrefs] = useState(false);
+  const [showTelegramSetup, setShowTelegramSetup] = useState(false);
   
   // Tag Inputs
   const [newRoleInput, setNewRoleInput] = useState("");
@@ -365,6 +371,7 @@ export default function CareerScraperPage() {
       setPrefExperience(demoPreferences.experience_range);
       setPrefMinScore(demoPreferences.min_relevance_score);
       setPrefInterval(demoPreferences.scrape_interval_hours);
+      setTelegramConfigured(demoPreferences.telegram_configured ?? false);
       return;
     }
     try {
@@ -374,6 +381,7 @@ export default function CareerScraperPage() {
       setPrefExperience(data.experience_range);
       setPrefMinScore(data.min_relevance_score);
       setPrefInterval(data.scrape_interval_hours);
+      setTelegramConfigured(data.telegram_configured ?? false);
     } catch (err) {
       console.error("Failed to load scraper preferences", err);
     }
@@ -381,20 +389,24 @@ export default function CareerScraperPage() {
 
   // Load sites for the manager
   const loadSitesList = useCallback(
-    async (searchQuery: string = siteSearchText) => {
+    async (searchQuery: string = siteSearchText, activeTab = siteStatusTab) => {
       setIsLoadingSites(true);
+      const isActiveParam = activeTab === "all" ? undefined : activeTab === "active";
+
       if (isDemoMode) {
         setTimeout(() => {
-          const filtered = demoSites.filter((site) =>
-            site.site_name.toLowerCase().includes(searchQuery.toLowerCase())
-          );
+          const filtered = demoSites.filter((site) => {
+            const matchesSearch = site.site_name.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesActive = isActiveParam === undefined || site.is_active === isActiveParam;
+            return matchesSearch && matchesActive;
+          });
           setSites(filtered);
           setIsLoadingSites(false);
         }, 300);
         return;
       }
       try {
-        const data = await fetchScraperSites(searchQuery, undefined, 100);
+        const data = await fetchScraperSites(searchQuery, isActiveParam, 100);
         setSites(data);
       } catch (err: any) {
         showToast(err.message || "Failed to fetch scraper sites", "error");
@@ -402,7 +414,7 @@ export default function CareerScraperPage() {
         setIsLoadingSites(false);
       }
     },
-    [isDemoMode, demoSites, siteSearchText]
+    [isDemoMode, demoSites, siteSearchText, siteStatusTab]
   );
 
   const loadAllData = useCallback(() => {
@@ -438,14 +450,20 @@ export default function CareerScraperPage() {
     if (!mounted || !(token || isDemoMode)) return;
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => {
-      loadSitesList(siteSearchText);
+      loadSitesList(siteSearchText, siteStatusTab);
     }, 300);
   }, [siteSearchText]);
+
+  // Fetch list when status filter tab updates
+  const handleTabChange = (tab: "all" | "active" | "inactive") => {
+    setSiteStatusTab(tab);
+    loadSitesList(siteSearchText, tab);
+  };
 
   // Fetch full list once drawer is opened
   useEffect(() => {
     if (showSitesDrawer && (token || isDemoMode)) {
-      loadSitesList("");
+      loadSitesList("", siteStatusTab);
     }
   }, [showSitesDrawer]);
 
@@ -537,12 +555,12 @@ export default function CareerScraperPage() {
 
   const handleRunScrape = async () => {
     setIsScraping(true);
-    showToast("Starting full scrape cycle — this may take 30-60 seconds…", "success");
+    showToast("Starting full scrape cycle — this may take 30-90 seconds…", "success");
 
     if (isDemoMode) {
       setTimeout(() => {
         setIsScraping(false);
-        showToast("Scrape completed successfully! (Demo)", "success");
+        showToast("Scrape completed! Found 4 new jobs (Demo)", "success");
         loadAllData();
       }, 3000);
       return;
@@ -729,6 +747,30 @@ export default function CareerScraperPage() {
     }
   };
 
+  // Delete site from list
+  const handleDeleteSite = async (siteId: number, siteName: string) => {
+    if (!window.confirm(`Are you sure you want to remove ${siteName} from the scraper dictionary?`)) {
+      return;
+    }
+
+    if (isDemoMode) {
+      const updatedDemo = demoSites.filter((s) => s.id !== siteId);
+      setDemoSites(updatedDemo);
+      setSites((prev) => prev.filter((s) => s.id !== siteId));
+      showToast(`${capitalize(siteName)} removed from dictionary (Demo)`, "success");
+      return;
+    }
+
+    try {
+      await deleteScraperSite(siteId);
+      setSites((prev) => prev.filter((s) => s.id !== siteId));
+      loadActiveSitesCount();
+      showToast(`${capitalize(siteName)} removed from dictionary`, "success");
+    } catch (err: any) {
+      showToast(err.message || "Failed to delete scraper site", "error");
+    }
+  };
+
   // Bulk enable/disable sites listed
   const handleBulkToggle = async (activeState: boolean) => {
     if (sites.length === 0) return;
@@ -782,6 +824,7 @@ export default function CareerScraperPage() {
       experience_range: prefExperience,
       min_relevance_score: prefMinScore,
       scrape_interval_hours: prefInterval,
+      telegram_configured: telegramConfigured,
     };
 
     if (isDemoMode) {
@@ -906,12 +949,11 @@ export default function CareerScraperPage() {
             <div className="flex items-center gap-2 mb-1">
               <Radar className="text-accent w-5 h-5 animate-pulse" />
               <h1 className="text-2xl font-black font-[family-name:var(--font-instrument-serif)] text-foreground tracking-tight">
-                Career Scraper
+                Career Radar
               </h1>
             </div>
             <p className="text-xs text-foreground-secondary font-medium">
-              AI-powered job discovery — scrapes career pages hourly and matches
-              to your preferences
+              AI-powered job discovery — live ATS polling + browser scraping, matched to your profile
             </p>
           </div>
 
@@ -1627,6 +1669,33 @@ export default function CareerScraperPage() {
                 </button>
               </div>
 
+              {/* Status Filter Tabs */}
+              <div className="px-5 pt-3 flex gap-1 border-b border-border/40 bg-card/5">
+                {[
+                  { id: "all", label: "All Sites" },
+                  { id: "active", label: "Active" },
+                  { id: "inactive", label: "Inactive" },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleTabChange(tab.id as any)}
+                    className={`pb-2 px-3 text-xs font-black relative cursor-pointer ${
+                      siteStatusTab === tab.id
+                        ? "text-accent"
+                        : "text-foreground-secondary hover:text-foreground"
+                    }`}
+                  >
+                    {tab.label}
+                    {siteStatusTab === tab.id && (
+                      <motion.div
+                        layoutId="activeTabUnderline"
+                        className="absolute bottom-0 inset-x-0 h-0.5 bg-accent"
+                      />
+                    )}
+                  </button>
+                ))}
+              </div>
+
               {/* Drawer Content */}
               <div className="flex-1 overflow-y-auto p-5 space-y-5">
                 
@@ -1662,7 +1731,7 @@ export default function CareerScraperPage() {
                           className="p-4 space-y-3.5 border-t border-border/50 bg-card/10"
                         >
                           <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-foreground-secondary uppercase tracking-widest">
+                            <label className="text-[9px] font-bold text-foreground-secondary uppercase tracking-widest block">
                               Company / Name
                             </label>
                             <input
@@ -1676,7 +1745,7 @@ export default function CareerScraperPage() {
                           </div>
 
                           <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-foreground-secondary uppercase tracking-widest">
+                            <label className="text-[9px] font-bold text-foreground-secondary uppercase tracking-widest block">
                               Career Page URL
                             </label>
                             <input
@@ -1784,7 +1853,7 @@ export default function CareerScraperPage() {
                 </div>
 
                 {/* Scrollable Website List */}
-                <div className="space-y-2 max-h-[calc(100vh-295px)] overflow-y-auto pr-1 font-sans">
+                <div className="space-y-2 max-h-[calc(100vh-340px)] overflow-y-auto pr-1 font-sans">
                   {isLoadingSites ? (
                     <div className="py-12 flex flex-col items-center justify-center gap-2">
                       <Loader2
@@ -1865,54 +1934,78 @@ export default function CareerScraperPage() {
                             </div>
                           ) : (
                             /* Unedited View */
-                            <div className="flex items-center justify-between">
-                              <div className="space-y-0.5 max-w-[60%]">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-xs font-black text-foreground truncate">
-                                    {site.site_name}
-                                  </span>
-                                  {site.site_type && (
-                                    <span className="px-1.5 py-0.2 border border-border/60 bg-muted/60 text-muted-foreground text-[8px] font-bold uppercase tracking-wider rounded">
-                                      {site.site_type}
+                            <div className="flex flex-col gap-2">
+                              <div className="flex items-start justify-between">
+                                <div className="space-y-0.5 max-w-[60%]">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-xs font-black text-foreground truncate">
+                                      {site.site_name}
                                     </span>
-                                  )}
+                                    
+                                    {/* Type badge */}
+                                    <span className="px-1.5 py-0.2 border border-border/60 bg-muted/60 text-muted-secondary text-[8px] font-bold uppercase tracking-wider rounded">
+                                      {site.site_type ? site.site_type : "—"}
+                                    </span>
+
+                                    {/* Fail count badge */}
+                                    {site.fail_count !== undefined && site.fail_count > 0 && (
+                                      <span className="px-1.5 py-0.2 bg-rose-500/10 border border-rose-500/25 text-rose-400 text-[8px] font-bold tracking-wider rounded">
+                                        FAIL: {site.fail_count}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <a
+                                    href={site.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-0.5 text-[10px] text-accent/80 hover:text-accent font-semibold transition-colors truncate max-w-full"
+                                  >
+                                    Visit careers page
+                                    <ExternalLink size={8} />
+                                  </a>
                                 </div>
-                                <a
-                                  href={site.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-0.5 text-[10px] text-accent/80 hover:text-accent font-semibold transition-colors truncate max-w-full"
-                                >
-                                  Visit careers page
-                                  <ExternalLink size={8} />
-                                </a>
+
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  {/* Edit pencil button */}
+                                  <button
+                                    onClick={() => handleStartEdit(site)}
+                                    className="p-1 text-foreground-secondary hover:text-foreground hover:bg-muted rounded-lg transition-all cursor-pointer"
+                                    title="Edit Website"
+                                  >
+                                    <Pencil size={11} />
+                                  </button>
+
+                                  {/* Delete trash button */}
+                                  <button
+                                    onClick={() => handleDeleteSite(site.id, site.site_name)}
+                                    className="p-1 text-foreground-secondary hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all cursor-pointer"
+                                    title="Delete Site"
+                                  >
+                                    <Trash2 size={11} />
+                                  </button>
+
+                                  {/* Active Toggle Switch */}
+                                  <div className="flex items-center gap-1.5">
+                                    <button
+                                      onClick={() => handleToggleSite(site)}
+                                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${
+                                        site.is_active ? "bg-accent" : "bg-muted"
+                                      }`}
+                                    >
+                                      <span
+                                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${
+                                          site.is_active ? "translate-x-4" : "translate-x-0"
+                                        }`}
+                                      />
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
 
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                {/* Edit pencil button */}
-                                <button
-                                  onClick={() => handleStartEdit(site)}
-                                  className="p-1 text-foreground-secondary hover:text-foreground hover:bg-muted rounded-lg transition-all cursor-pointer"
-                                  title="Edit Website"
-                                >
-                                  <Pencil size={11} />
-                                </button>
-
-                                {/* Active Toggle Switch */}
-                                <div className="flex items-center gap-1.5">
-                                  <button
-                                    onClick={() => handleToggleSite(site)}
-                                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${
-                                      site.is_active ? "bg-accent" : "bg-muted"
-                                    }`}
-                                  >
-                                    <span
-                                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${
-                                        site.is_active ? "translate-x-4" : "translate-x-0"
-                                      }`}
-                                    />
-                                  </button>
-                                </div>
+                              {/* Relative Scraped success timestamp */}
+                              <div className="text-[9px] text-muted-foreground font-medium flex items-center gap-1">
+                                <Clock size={8} />
+                                Last success: {site.last_success ? relativeTime(site.last_success) : "Never"}
                               </div>
                             </div>
                           )}
@@ -1920,6 +2013,71 @@ export default function CareerScraperPage() {
                       );
                     })
                   )}
+                </div>
+
+                {/* ── Direct ATS Polling Section ────────────────── */}
+                <div className="border border-border/80 bg-muted/20 rounded-2xl overflow-hidden shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setShowAtsSources(!showAtsSources)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-muted/40 hover:bg-muted/70 transition-colors text-xs font-bold text-foreground cursor-pointer"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Target size={14} className="text-blue-400" />
+                      Direct ATS Polling (FirstDips)
+                    </span>
+                    <ChevronDown
+                      size={14}
+                      className={`text-foreground-secondary transition-transform ${
+                        showAtsSources ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+
+                  <AnimatePresence>
+                    {showAtsSources && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.25 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="p-4 space-y-3 border-t border-border/50 bg-card/10">
+                          <p className="text-[10px] text-foreground-secondary leading-relaxed font-medium">
+                            These companies are polled directly via their ATS API (Greenhouse, Lever, Ashby, Workday) every hour — no browser required. New jobs trigger instant Telegram alerts.
+                          </p>
+                          <div className="overflow-x-auto rounded-xl border border-border/85 bg-card/45">
+                            <table className="w-full text-left text-[10px]">
+                              <thead>
+                                <tr className="bg-muted/50 border-b border-border/80">
+                                  <th className="px-3 py-2 font-black text-foreground-secondary uppercase tracking-wider">Company</th>
+                                  <th className="px-3 py-2 font-black text-foreground-secondary uppercase tracking-wider">ATS Platform</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {[
+                                  { name: "Stripe", platform: "Greenhouse" },
+                                  { name: "Spotify", platform: "Lever" },
+                                  { name: "Vercel", platform: "Greenhouse" },
+                                  { name: "Supabase", platform: "Greenhouse" },
+                                  { name: "Cloudflare", platform: "Greenhouse" },
+                                ].map((source) => (
+                                  <tr key={source.name} className="border-b border-border/40 last:border-none hover:bg-muted/30 transition-colors">
+                                    <td className="px-3 py-2 text-foreground font-semibold">{source.name}</td>
+                                    <td className="px-3 py-2 text-foreground-secondary font-medium">{source.platform}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                          <p className="text-[9px] text-muted-foreground italic leading-normal">
+                            * To add more companies to the ATS polling list, edit <code className="font-mono text-accent bg-accent-light/50 px-1 py-0.2 rounded">app/scraper/firstdips/sources.yaml</code> on the server.
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
               </div>
@@ -2138,6 +2296,78 @@ export default function CareerScraperPage() {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* 6. Telegram Alerts Status (Modal Footer Sub-section) */}
+                <div className="mt-4 pt-4 border-t border-border/85 font-sans space-y-3 text-left">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-foreground">
+                        🔔 Telegram Alerts
+                      </span>
+                    </div>
+                    {telegramConfigured ? (
+                      <span className="px-2.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-[9px] font-black uppercase tracking-wider">
+                        ✅ Configured
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg text-[9px] font-black uppercase tracking-wider">
+                        ⚠ Not configured
+                      </span>
+                    )}
+                  </div>
+
+                  <div className={`p-3 rounded-2xl border text-[10px] font-semibold leading-relaxed ${
+                    telegramConfigured 
+                      ? "bg-emerald-500/5 border-emerald-500/10 text-emerald-300/90" 
+                      : "bg-rose-500/5 border-rose-500/10 text-rose-300/90"
+                  }`}>
+                    {telegramConfigured 
+                      ? "Alerts will be sent automatically to your Telegram channel for new matching jobs."
+                      : "Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in your .env file to enable push alerts."
+                    }
+                  </div>
+
+                  {/* Collapsible Setup Guide */}
+                  <div className="border border-border/80 bg-muted/10 rounded-xl overflow-hidden shadow-sm">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setShowTelegramSetup(!showTelegramSetup);
+                      }}
+                      className="w-full flex items-center justify-between px-3 py-2 hover:bg-muted/40 transition-colors text-[10px] font-bold text-foreground-secondary cursor-pointer"
+                    >
+                      <span>How to set up Telegram push alerts</span>
+                      <ChevronDown
+                        size={12}
+                        className={`text-foreground-secondary transition-transform ${
+                          showTelegramSetup ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+
+                    <AnimatePresence>
+                      {showTelegramSetup && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="p-3 border-t border-border/50 space-y-2 text-[10px] text-foreground-secondary leading-normal bg-card/5">
+                            <ol className="list-decimal list-inside space-y-1.5 font-medium">
+                              <li>Message <code className="font-mono text-accent bg-accent-light/50 px-1 py-0.2 rounded">@BotFather</code> on Telegram to create your bot and receive your <code className="font-mono text-accent">TELEGRAM_BOT_TOKEN</code>.</li>
+                              <li>Message <code className="font-mono text-accent bg-accent-light/50 px-1 py-0.2 rounded">@userinfobot</code> on Telegram to retrieve your <code className="font-mono text-accent">TELEGRAM_CHAT_ID</code>.</li>
+                              <li>Add both variables to your backend host configuration <code className="font-mono text-accent">.env</code> file.</li>
+                              <li>Restart the backend server to apply the changes. Alerts will begin firing automatically.</li>
+                            </ol>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
 
                 {/* Submit Actions */}

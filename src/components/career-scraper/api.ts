@@ -41,6 +41,7 @@ export interface ScraperPreferences {
   experience_range: string;
   min_relevance_score: number;
   scrape_interval_hours: number;
+  telegram_configured?: boolean;
 }
 
 // ── API Functions ──────────────────────────────────────────────────────
@@ -142,6 +143,16 @@ export const updateScraperSite = async (
     throw new Error(errorBody.detail || "Failed to update scraper site");
   }
   return response.json();
+};
+
+export const deleteScraperSite = async (siteId: number): Promise<void> => {
+  const response = await stratosFetch(`/scraper/sites/${siteId}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.detail || "Failed to delete scraper site");
+  }
 };
 
 export const fetchScraperPreferences = async (): Promise<ScraperPreferences> => {
@@ -337,7 +348,7 @@ export const MOCK_SCRAPER_SITES: ScraperSite[] = [
     url: "https://stripe.com/jobs",
     site_type: "api",
     api_pattern: "https://api.stripe.com/v1/jobs",
-    last_success: "2026-07-18T10:00:00Z",
+    last_success: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
     fail_count: 0,
     is_active: true,
   },
@@ -347,7 +358,7 @@ export const MOCK_SCRAPER_SITES: ScraperSite[] = [
     url: "https://notion.so/careers",
     site_type: "html",
     api_pattern: null,
-    last_success: "2026-07-18T10:00:00Z",
+    last_success: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     fail_count: 0,
     is_active: true,
   },
@@ -357,7 +368,7 @@ export const MOCK_SCRAPER_SITES: ScraperSite[] = [
     url: "https://vercel.com/careers",
     site_type: "api",
     api_pattern: "https://boards-api.greenhouse.io/v1/boards/vercel/jobs",
-    last_success: "2026-07-18T10:00:00Z",
+    last_success: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
     fail_count: 0,
     is_active: true,
   },
@@ -367,7 +378,7 @@ export const MOCK_SCRAPER_SITES: ScraperSite[] = [
     url: "https://supabase.com/careers",
     site_type: "api",
     api_pattern: "https://boards-api.greenhouse.io/v1/boards/supabase/jobs",
-    last_success: "2026-07-18T10:00:00Z",
+    last_success: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
     fail_count: 0,
     is_active: true,
   },
@@ -377,7 +388,7 @@ export const MOCK_SCRAPER_SITES: ScraperSite[] = [
     url: "https://linear.app/careers",
     site_type: "html",
     api_pattern: null,
-    last_success: "2026-07-18T10:00:00Z",
+    last_success: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
     fail_count: 0,
     is_active: true,
   },
@@ -387,7 +398,7 @@ export const MOCK_SCRAPER_SITES: ScraperSite[] = [
     url: "https://resend.com/careers",
     site_type: "html",
     api_pattern: null,
-    last_success: "2026-07-18T10:00:00Z",
+    last_success: new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString(),
     fail_count: 0,
     is_active: true,
   },
@@ -397,7 +408,7 @@ export const MOCK_SCRAPER_SITES: ScraperSite[] = [
     url: "https://postman.com/careers",
     site_type: "html",
     api_pattern: null,
-    last_success: "2026-07-18T09:00:00Z",
+    last_success: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
     fail_count: 1,
     is_active: false,
   },
@@ -407,7 +418,7 @@ export const MOCK_SCRAPER_SITES: ScraperSite[] = [
     url: "https://razorpay.com/careers",
     site_type: "html",
     api_pattern: null,
-    last_success: "2026-07-18T06:00:00Z",
+    last_success: new Date(Date.now() - 30 * 60 * 60 * 1000).toISOString(),
     fail_count: 2,
     is_active: false,
   },
@@ -417,7 +428,7 @@ export const MOCK_SCRAPER_SITES: ScraperSite[] = [
     url: "https://cloudflare.com/careers",
     site_type: "api",
     api_pattern: "https://boards-api.greenhouse.io/v1/boards/cloudflare/jobs",
-    last_success: "2026-07-18T10:00:00Z",
+    last_success: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
     fail_count: 0,
     is_active: true,
   },
@@ -427,7 +438,7 @@ export const MOCK_SCRAPER_SITES: ScraperSite[] = [
     url: "https://atlassian.com/careers",
     site_type: "api",
     api_pattern: null,
-    last_success: "2026-07-18T10:00:00Z",
+    last_success: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
     fail_count: 0,
     is_active: true,
   },
@@ -447,7 +458,7 @@ export const MOCK_SCRAPER_SITES: ScraperSite[] = [
     url: "https://careers.google.com",
     site_type: "api",
     api_pattern: "https://careers.google.com/api/v1/jobs",
-    last_success: "2026-07-18T10:00:00Z",
+    last_success: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
     fail_count: 0,
     is_active: true,
   },
@@ -459,4 +470,5 @@ export const MOCK_SCRAPER_PREFERENCES: ScraperPreferences = {
   experience_range: "2-6 years",
   min_relevance_score: 0.5,
   scrape_interval_hours: 1,
+  telegram_configured: true,
 };
