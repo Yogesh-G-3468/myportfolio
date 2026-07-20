@@ -20,8 +20,8 @@ export default function Hero() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6 }}
                 >
-                    <p className="text-accent text-sm font-medium tracking-wide uppercase mb-4">
-                        Software Engineer
+                    <p className="text-accent text-sm font-semibold tracking-wide uppercase mb-4">
+                        {personalInfo.title || "Solutions Enabler & Senior Software Engineer"}
                     </p>
                     <h1 className="font-[family-name:var(--font-instrument-serif)] text-5xl sm:text-6xl md:text-8xl text-foreground mb-6 leading-[1.05]">
                         Yogeshwaran <span className="italic text-accent">G</span>

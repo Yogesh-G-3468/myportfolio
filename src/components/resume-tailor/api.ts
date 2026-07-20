@@ -42,12 +42,20 @@ export interface AtsScoreBreakdown {
   section_scores: SectionScore[];
 }
 
+export interface AuditReport {
+  verified_facts: string[];
+  reframed_keywords: string[];
+  audited_removed: string[];
+}
+
 export interface TailorResumeResponse {
   job_id: string;
   status: "pending" | "processing" | "completed" | "failed";
   ats_score_before?: AtsScoreBreakdown;
   ats_score_after?: AtsScoreBreakdown;
   tailored_resume_markdown?: string;
+  tailored_resume_latex?: string;
+  fact_audit_report?: AuditReport;
   change_summary?: string[];
   missing_qualifications?: string[];
   download_url?: string;
