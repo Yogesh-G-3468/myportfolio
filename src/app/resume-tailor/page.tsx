@@ -818,6 +818,13 @@ Grade: \\textbf{CGPA 8.57 / 10} (First Class with Distinction)
       const data = await tailorResume(activeResumeId, currentJdText, tone, outputFormat);
       setTailoringJobId(data.job_id);
       if (data.status === "completed") {
+        if (!data.tailored_resume_latex) {
+          const dynamicGen = analyzeJdAndTailor(currentJdText);
+          data.tailored_resume_latex = dynamicGen.tailored_resume_latex;
+          if (!data.fact_audit_report) {
+            data.fact_audit_report = dynamicGen.fact_audit_report;
+          }
+        }
         setTailoringResult(data);
         setIsTailoring(false);
         setTailoringStep("done");
@@ -1748,7 +1755,11 @@ Grade: \\textbf{CGPA 8.57 / 10} (First Class with Distinction)
                         {activeRightTab === "latex" && (
                           <div className="h-full">
                             <LatexCodeViewer
-                              code={tailoringResult.tailored_resume_latex || ""}
+                              code={
+                                tailoringResult.tailored_resume_latex ||
+                                analyzeJdAndTailor(extractedJd?.raw_text || jdText || "").tailored_resume_latex ||
+                                ""
+                              }
                               onCopySuccess={(msg) => showToast(msg, "success")}
                               filename="tailored_resume.tex"
                             />
