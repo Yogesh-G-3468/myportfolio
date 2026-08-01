@@ -88,12 +88,22 @@ export interface TailorResumeResponse {
   download_url?: string;
 }
 
+export interface ResumeConstraints {
+  min_bullets_per_job?: number;
+  max_bullets_per_job?: number;
+  max_projects?: number;
+  max_bullet_words?: number;
+  keyword_coverage_target?: number;
+  font?: string;
+}
+
 export interface BuildResumePayload {
   jd_text?: string;
   jd_url?: string;
   tone?: string;
   output_format?: string;
   resume_id?: string;
+  constraints?: ResumeConstraints;
 }
 
 // Upload resume as multipart/form-data
@@ -111,33 +121,52 @@ export const uploadResume = async (file: File): Promise<ResumeUploadResponse> =>
     throw new Error(errorBody.detail || "Failed to upload resume file");
   }
 
-  // 1. Extract the resume ID and filename from response headers
-  const resumeId = response.headers.get("X-Resume-Id") || response.headers.get("x-resume-id") || "";
-  const filename = response.headers.get("X-Filename") || response.headers.get("x-filename") || file.name;
-
-  // 2. Extract the PDF as a binary blob
-  const pdfBlob = await response.blob();
+  // 1. Extract the resume ID and filename from response headers or body JSON
+  let resumeId = response.headers.get("X-Resume-Id") || response.headers.get("x-resume-id") || "";
+  let filename = response.headers.get("X-Filename") || response.headers.get("x-filename") || file.name;
+  
+  let pdfBlob: Blob | undefined;
+  try {
+    const cloned = response.clone();
+    const bodyJson = await cloned.json();
+    if (bodyJson.resume_id) resumeId = bodyJson.resume_id;
+    if (bodyJson.filename) filename = bodyJson.filename;
+  } catch (e) {
+    // If not JSON, read as binary blob
+    pdfBlob = await response.blob();
+  }
 
   return {
-    resume_id: resumeId,
+    resume_id: resumeId || `res_${Math.random().toString(36).substring(2, 11)}`,
     filename: filename,
     pdfBlob: pdfBlob,
     content_type: "application/pdf",
-    sections_found: ["summary", "skills", "experience", "education"], // Default sections
-    plain_text_length: pdfBlob.size,
+    sections_found: ["summary", "skills", "experience", "education"],
+    plain_text_length: file.size,
     created_at: new Date().toISOString()
   };
 };
 
-// Extract skills and attributes from JD
+// Extract skills and attributes from JD (POST /resume/extract-jd or POST /jd/extract)
 export const extractJD = async (jdText?: string, jdUrl?: string): Promise<JdExtractionResponse> => {
-  const response = await stratosFetch("/jd/extract", {
-    method: "POST",
-    body: JSON.stringify({
-      jd_text: jdText || "",
-      jd_url: jdUrl || "",
-    }),
+  const body = JSON.stringify({
+    jd_text: jdText || "",
+    jd_url: jdUrl || "",
   });
+
+  let response: Response;
+  try {
+    response = await stratosFetch("/resume/extract-jd", {
+      method: "POST",
+      body,
+    });
+    if (!response.ok) throw new Error();
+  } catch (e) {
+    response = await stratosFetch("/jd/extract", {
+      method: "POST",
+      body,
+    });
+  }
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
@@ -195,8 +224,16 @@ export const buildResume = async (
   payload: BuildResumePayload
 ): Promise<TailorResumeResponse> => {
   const bodyData: Record<string, any> = {
-    tone: payload.tone || "professional",
+    tone: payload.tone || "impact-driven",
     output_format: payload.output_format || "pdf",
+    constraints: payload.constraints || {
+      min_bullets_per_job: 2,
+      max_bullets_per_job: 4,
+      max_projects: 3,
+      max_bullet_words: 25,
+      keyword_coverage_target: 0.75,
+      font: "Arial"
+    }
   };
   if (payload.jd_text) bodyData.jd_text = payload.jd_text;
   if (payload.jd_url) bodyData.jd_url = payload.jd_url;
@@ -217,9 +254,10 @@ export const buildResume = async (
 
 // Poll job status
 export const getTailoredStatus = async (jobId: string): Promise<TailorResumeResponse> => {
-  const response = await stratosFetch(`/resume/tailor/${jobId}`, {
-    method: "GET",
-  });
+  let response = await stratosFetch(`/resume/job/${jobId}`, { method: "GET" }).catch(() => null);
+  if (!response || !response.ok) {
+    response = await stratosFetch(`/resume/tailor/${jobId}`, { method: "GET" });
+  }
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
@@ -237,14 +275,18 @@ export const downloadResumeFile = async (
 ): Promise<void> => {
   const token = getStratosToken();
   const cleanBase = BASE_URL.endsWith("/") ? BASE_URL.slice(0, -1) : BASE_URL;
-  const url = `${cleanBase}/resume/tailor/${jobId}/download?format=${format}`;
-
-  const response = await fetch(url, {
+  
+  let response = await fetch(`${cleanBase}/resume/job/${jobId}/download?format=${format}`, {
     method: "GET",
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+  }).catch(() => null);
+
+  if (!response || !response.ok) {
+    response = await fetch(`${cleanBase}/resume/tailor/${jobId}/download?format=${format}`, {
+      method: "GET",
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+    });
+  }
 
   if (!response.ok) {
     throw new Error(`Failed to download file: ${response.statusText}`);
