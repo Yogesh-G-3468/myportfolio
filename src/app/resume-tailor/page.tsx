@@ -870,13 +870,8 @@ Grade: \\textbf{CGPA 8.57 / 10} (First Class with Distinction)
       setActiveRightTab("ats");
       showToast("ATS Score computed successfully", "success");
     } catch (err: any) {
-      console.warn("API ATS scoring error, using dynamic client calculation:", err);
-      const dynamicResult = analyzeJdAndTailor(currentJdText);
-      if (dynamicResult.ats_score_after) {
-        setAtsScore(dynamicResult.ats_score_after);
-      }
-      setActiveRightTab("ats");
-      showToast("ATS Score computed for attached JD", "success");
+      console.error("API ATS scoring error:", err);
+      showToast(err.message || "Failed to calculate ATS score from API", "error");
     } finally {
       setIsScoring(false);
     }
@@ -950,20 +945,7 @@ Grade: \\textbf{CGPA 8.57 / 10} (First Class with Distinction)
 
       setTailoringJobId(data.job_id);
       if (data.status === "completed") {
-        const dynamicGen = analyzeJdAndTailor(currentJdText);
-        const mergedData: TailorResumeResponse = {
-          ...dynamicGen,
-          ...data,
-          matched_role: data.matched_role || dynamicGen.matched_role,
-          matched_role_ids: data.matched_role_ids || dynamicGen.matched_role_ids,
-          keyword_coverage_pct: data.keyword_coverage_pct ?? dynamicGen.keyword_coverage_pct,
-          keyword_list: data.keyword_list || dynamicGen.keyword_list,
-          pipeline_stages: data.pipeline_stages || dynamicGen.pipeline_stages,
-          ats_score: data.ats_score || dynamicGen.ats_score,
-          tailored_resume_latex: data.tailored_resume_latex || dynamicGen.tailored_resume_latex,
-          fact_audit_report: data.fact_audit_report || dynamicGen.fact_audit_report,
-        };
-        setTailoringResult(mergedData);
+        setTailoringResult(data);
         setIsTailoring(false);
         setTailoringStep("done");
         setActiveRightTab("preview");
@@ -973,8 +955,10 @@ Grade: \\textbf{CGPA 8.57 / 10} (First Class with Distinction)
         showToast("Build processing in background...", "success");
       }
     } catch (err: any) {
-      console.warn("API tailoring call failed, executing dynamic client generator:", err);
-      executeDemoTailoring();
+      console.error("API tailoring pipeline error:", err);
+      setIsTailoring(false);
+      setTailoringStep("idle");
+      showToast(err.message || "Failed to execute resume build pipeline", "error");
     }
   };
 
@@ -986,7 +970,7 @@ Grade: \\textbf{CGPA 8.57 / 10} (First Class with Distinction)
 
     if (isDemoMode || !jobId) {
       setTimeout(() => {
-        let content = tailoringResult?.tailored_resume_latex || tailoringResult?.tailored_resume_markdown || "";
+        let content = tailoringResult?.tailored_resume_markdown || tailoringResult?.tailored_resume_latex || "";
         let mime = "text/plain";
         let ext = outputFormat;
         
@@ -997,7 +981,7 @@ Grade: \\textbf{CGPA 8.57 / 10} (First Class with Distinction)
         } else if (outputFormat === "latex") {
           mime = "text/x-tex";
           ext = "tex";
-          content = tailoringResult?.tailored_resume_latex || "";
+          content = tailoringResult?.tailored_resume_markdown || tailoringResult?.tailored_resume_latex || "";
         } else if (outputFormat === "docx") {
           content = "Mock DOCX binary content placeholder\n" + (tailoringResult?.tailored_resume_markdown || "");
           mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -1025,20 +1009,10 @@ Grade: \\textbf{CGPA 8.57 / 10} (First Class with Distinction)
         ? `${resumeMetadata.filename.split(".")[0]}_tailored`
         : "tailored_resume";
       await downloadResumeFile(jobId, outputFormat, filename);
-    } catch (err: any) {
-      console.warn("Direct download endpoint failed, downloading generated content directly:", err);
-      const content = outputFormat === "latex" ? (tailoringResult?.tailored_resume_latex || "") : (tailoringResult?.tailored_resume_markdown || "");
-      const ext = outputFormat === "latex" ? "tex" : outputFormat === "markdown" ? "md" : outputFormat;
-      const blob = new Blob([content], { type: "text/plain;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `tailored_resume.${ext}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
       showToast("Downloaded tailored resume", "success");
+    } catch (err: any) {
+      console.error("API download error:", err);
+      showToast(err.message || "Failed to download file from server", "error");
     }
   };
 
