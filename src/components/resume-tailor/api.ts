@@ -106,6 +106,32 @@ export interface BuildResumePayload {
   constraints?: ResumeConstraints;
 }
 
+const handleApiResponseError = async (response: Response, defaultMsg: string): Promise<never> => {
+  if (response.status === 405) {
+    throw new Error(`HTTP 405 Method Not Allowed: Route '${response.url}' does not accept POST requests on stratos.yogeshwaran.space.`);
+  }
+  if (response.status === 502 || response.status === 504) {
+    throw new Error(`HTTP ${response.status} Bad Gateway: Backend server timeout or crash on stratos.yogeshwaran.space during XeLaTeX / Gemini execution.`);
+  }
+  let detail = defaultMsg;
+  try {
+    const body = await response.json();
+    if (body?.detail) {
+      detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+    }
+  } catch (e) {
+    const text = await response.text().catch(() => "");
+    if (text && text.trim().startsWith("<")) {
+      detail = `HTTP ${response.status} ${response.statusText}: Server returned non-JSON error page from stratos.yogeshwaran.space`;
+    } else if (text) {
+      detail = `HTTP ${response.status}: ${text.slice(0, 150)}`;
+    } else {
+      detail = `HTTP ${response.status}: ${response.statusText || defaultMsg}`;
+    }
+  }
+  throw new Error(detail);
+};
+
 // Upload resume as multipart/form-data
 export const uploadResume = async (file: File): Promise<ResumeUploadResponse> => {
   const formData = new FormData();
@@ -117,8 +143,7 @@ export const uploadResume = async (file: File): Promise<ResumeUploadResponse> =>
   });
 
   if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({}));
-    throw new Error(errorBody.detail || "Failed to upload resume file");
+    await handleApiResponseError(response, "Failed to upload resume file");
   }
 
   // 1. Extract the resume ID and filename from response headers or body JSON
@@ -160,8 +185,12 @@ export const extractJD = async (jdText?: string, jdUrl?: string): Promise<JdExtr
       method: "POST",
       body,
     });
+    if (!response.ok && response.status !== 404 && response.status !== 405) {
+      await handleApiResponseError(response, "Failed to extract job description details");
+    }
     if (!response.ok) throw new Error();
-  } catch (e) {
+  } catch (e: any) {
+    if (e.message && e.message.startsWith("HTTP ")) throw e;
     response = await stratosFetch("/jd/extract", {
       method: "POST",
       body,
@@ -169,8 +198,7 @@ export const extractJD = async (jdText?: string, jdUrl?: string): Promise<JdExtr
   }
 
   if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({}));
-    throw new Error(errorBody.detail || "Failed to extract job description details");
+    await handleApiResponseError(response, "Failed to extract job description details");
   }
 
   return response.json();
@@ -187,8 +215,7 @@ export const getAtsScore = async (resumeId: string, jdText: string): Promise<Ats
   });
 
   if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({}));
-    throw new Error(errorBody.detail || "Failed to calculate ATS score");
+    await handleApiResponseError(response, "Failed to calculate ATS score");
   }
 
   return response.json();
@@ -212,8 +239,7 @@ export const tailorResume = async (
   });
 
   if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({}));
-    throw new Error(errorBody.detail || "Failed to start resume tailoring");
+    await handleApiResponseError(response, "Failed to start resume tailoring");
   }
 
   return response.json();
@@ -245,8 +271,7 @@ export const buildResume = async (
   });
 
   if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({}));
-    throw new Error(errorBody.detail || "Failed to execute Headless Headhunter build pipeline");
+    await handleApiResponseError(response, "Failed to execute Headless Headhunter build pipeline");
   }
 
   return response.json();
