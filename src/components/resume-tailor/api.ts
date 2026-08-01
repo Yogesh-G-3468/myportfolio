@@ -48,9 +48,36 @@ export interface AuditReport {
   audited_removed: string[];
 }
 
+export interface KeywordItem {
+  keyword: string;
+  placed?: boolean;
+}
+
+export interface KeywordCategorizedList {
+  required?: (string | KeywordItem)[];
+  tools?: (string | KeywordItem)[];
+  nice_to_have?: (string | KeywordItem)[];
+  soft_skills?: (string | KeywordItem)[];
+}
+
+export interface RecruiterAtsScore {
+  overall_score: number;
+  section_scores: SectionScore[];
+  keyword_match_pct?: number;
+  matched_keywords?: KeywordMatch[];
+  missing_keywords?: KeywordMatch[];
+  formatting_issues?: string[];
+}
+
 export interface TailorResumeResponse {
   job_id: string;
   status: "pending" | "processing" | "completed" | "failed";
+  matched_role?: string;
+  matched_role_ids?: string[];
+  keyword_coverage_pct?: number;
+  keyword_list?: KeywordCategorizedList;
+  pipeline_stages?: string[];
+  ats_score?: RecruiterAtsScore | AtsScoreBreakdown;
   ats_score_before?: AtsScoreBreakdown;
   ats_score_after?: AtsScoreBreakdown;
   tailored_resume_markdown?: string;
@@ -59,6 +86,14 @@ export interface TailorResumeResponse {
   change_summary?: string[];
   missing_qualifications?: string[];
   download_url?: string;
+}
+
+export interface BuildResumePayload {
+  jd_text?: string;
+  jd_url?: string;
+  tone?: string;
+  output_format?: string;
+  resume_id?: string;
 }
 
 // Upload resume as multipart/form-data
@@ -150,6 +185,31 @@ export const tailorResume = async (
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
     throw new Error(errorBody.detail || "Failed to start resume tailoring");
+  }
+
+  return response.json();
+};
+
+// Trigger Headless Headhunter recruiter pipeline endpoint (POST /resume/build)
+export const buildResume = async (
+  payload: BuildResumePayload
+): Promise<TailorResumeResponse> => {
+  const bodyData: Record<string, any> = {
+    tone: payload.tone || "professional",
+    output_format: payload.output_format || "pdf",
+  };
+  if (payload.jd_text) bodyData.jd_text = payload.jd_text;
+  if (payload.jd_url) bodyData.jd_url = payload.jd_url;
+  if (payload.resume_id) bodyData.resume_id = payload.resume_id;
+
+  const response = await stratosFetch("/resume/build", {
+    method: "POST",
+    body: JSON.stringify(bodyData),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.detail || "Failed to execute Headless Headhunter build pipeline");
   }
 
   return response.json();
