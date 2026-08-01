@@ -168,7 +168,12 @@ export default function ResumeTailorPage() {
   const [activeStageIndex, setActiveStageIndex] = useState(0);
   const [tailoringJobId, setTailoringJobId] = useState<string | null>(null);
   const [tailoringResult, setTailoringResult] = useState<TailorResumeResponse | null>(null);
-  const [activeRightTab, setActiveRightTab] = useState<"latex" | "ats" | "audit">("latex");
+  const [activeRightTab, setActiveRightTab] = useState<"preview" | "ats" | "audit">("preview");
+  const [selectedPreviewFormat, setSelectedPreviewFormat] = useState<string>("pdf");
+
+  useEffect(() => {
+    setSelectedPreviewFormat(outputFormat);
+  }, [outputFormat]);
 
   useEffect(() => {
     if (!isTailoring) {
@@ -240,7 +245,7 @@ export default function ResumeTailorPage() {
           setTailoringResult(result);
           setIsTailoring(false);
           setTailoringStep("done");
-          setActiveRightTab("latex");
+          setActiveRightTab("preview");
           showToast("Resume tailoring complete!", "success");
         } else if (result.status === "failed") {
           setIsTailoring(false);
@@ -915,7 +920,7 @@ Grade: \\textbf{CGPA 8.57 / 10} (First Class with Distinction)
               setTailoringResult(dynamicResult);
               setIsTailoring(false);
               setTailoringStep("done");
-              setActiveRightTab("latex");
+              setActiveRightTab("preview");
               showToast("Resume tailored successfully for attached JD!", "success");
             }, 500);
           }, 500);
@@ -961,7 +966,7 @@ Grade: \\textbf{CGPA 8.57 / 10} (First Class with Distinction)
         setTailoringResult(mergedData);
         setIsTailoring(false);
         setTailoringStep("done");
-        setActiveRightTab("latex");
+        setActiveRightTab("preview");
         showToast("Resume build complete!", "success");
       } else {
         setTailoringStep("history");
@@ -1863,15 +1868,15 @@ Grade: \\textbf{CGPA 8.57 / 10} (First Class with Distinction)
                     {/* Result Navigation tabs */}
                     <div className="flex bg-muted p-1.5 rounded-2xl gap-1 mb-4 border border-border/60">
                       <button
-                        onClick={() => setActiveRightTab("latex")}
+                        onClick={() => setActiveRightTab("preview")}
                         className={`flex-1 py-2 px-3 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                          activeRightTab === "latex" 
+                          activeRightTab === "preview" 
                             ? "bg-background text-foreground shadow-sm border border-border" 
                             : "text-foreground-secondary hover:text-foreground"
                         }`}
                       >
                         <FileCode size={14} className="text-accent" />
-                        <span>📝 LaTeX Source Code</span>
+                        <span>📄 Output Preview</span>
                       </button>
                       <button
                         onClick={() => setActiveRightTab("ats")}
@@ -1901,18 +1906,150 @@ Grade: \\textbf{CGPA 8.57 / 10} (First Class with Distinction)
                     <div className="flex-1 flex flex-col justify-between overflow-hidden">
                       <div className="flex-1 overflow-hidden mb-3 min-h-[350px]">
                         
-                        {/* Tab 1: 📝 LaTeX Source Code (Default Tab) */}
-                        {activeRightTab === "latex" && (
-                          <div className="h-full">
-                            <LatexCodeViewer
-                              code={
-                                tailoringResult.tailored_resume_latex ||
-                                analyzeJdAndTailor(extractedJd?.raw_text || jdText || "").tailored_resume_latex ||
-                                ""
-                              }
-                              onCopySuccess={(msg) => showToast(msg, "success")}
-                              filename="tailored_resume.tex"
-                            />
+                        {/* Tab 1: 📄 Dynamic Output Preview (PDF, DOCX, Markdown, LaTeX) */}
+                        {activeRightTab === "preview" && (
+                          <div className="h-full flex flex-col space-y-3">
+                            
+                            {/* Format Selector Pills Bar */}
+                            <div className="flex items-center justify-between bg-muted/40 p-2 rounded-2xl border border-border/60">
+                              <span className="text-[11px] font-bold text-foreground flex items-center gap-1.5 pl-1">
+                                <Sparkles size={13} className="text-accent animate-pulse" />
+                                Preview Format:
+                              </span>
+                              <div className="flex bg-muted p-1 rounded-xl gap-1">
+                                {[
+                                  { id: "pdf", label: "PDF Document", ext: ".pdf" },
+                                  { id: "docx", label: "Word DOCX", ext: ".docx" },
+                                  { id: "markdown", label: "Markdown", ext: ".md" },
+                                  { id: "latex", label: "LaTeX Source", ext: ".tex" }
+                                ].map((fmt) => (
+                                  <button
+                                    key={fmt.id}
+                                    type="button"
+                                    onClick={() => setSelectedPreviewFormat(fmt.id)}
+                                    className={`px-2.5 py-1 text-[10px] font-black rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+                                      selectedPreviewFormat === fmt.id
+                                        ? "bg-accent text-white shadow-sm"
+                                        : "text-foreground-secondary hover:text-foreground"
+                                    }`}
+                                  >
+                                    <span className="uppercase">{fmt.id}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Format-Specific Viewers */}
+                            <div className="flex-1 overflow-hidden">
+                              {/* LaTeX View */}
+                              {selectedPreviewFormat === "latex" && (
+                                <div className="h-full">
+                                  <LatexCodeViewer
+                                    code={
+                                      tailoringResult.tailored_resume_latex ||
+                                      analyzeJdAndTailor(extractedJd?.raw_text || jdText || "").tailored_resume_latex ||
+                                      ""
+                                    }
+                                    onCopySuccess={(msg) => showToast(msg, "success")}
+                                    filename="tailored_resume.tex"
+                                  />
+                                </div>
+                              )}
+
+                              {/* Markdown View */}
+                              {selectedPreviewFormat === "markdown" && (
+                                <div className="flex flex-col h-full border border-border rounded-2xl overflow-hidden bg-card text-foreground shadow-sm">
+                                  <div className="flex items-center justify-between px-4 py-3 bg-muted/60 border-b border-border">
+                                    <div className="flex items-center gap-2">
+                                      <FileText size={16} className="text-accent" />
+                                      <span className="text-xs font-bold text-foreground">tailored_resume.md</span>
+                                      <span className="px-2 py-0.5 text-[9px] font-black uppercase rounded bg-accent/10 text-accent border border-accent/20">Markdown</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => copyToClipboard(tailoringResult.tailored_resume_markdown || "")}
+                                        className="px-3 py-1.5 rounded-xl text-xs font-bold bg-muted hover:bg-border text-foreground transition-all flex items-center gap-1.5 cursor-pointer"
+                                      >
+                                        <Copy size={13} />
+                                        Copy Code
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={handleDownload}
+                                        className="px-3 py-1.5 rounded-xl text-xs font-black bg-accent hover:bg-accent/90 text-white transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                                      >
+                                        <Download size={13} />
+                                        Download .md
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div className="flex-1 overflow-y-auto p-5 text-xs leading-relaxed custom-scrollbar bg-card">
+                                    <div 
+                                      className="prose dark:prose-invert max-w-none text-xs leading-relaxed text-foreground font-sans space-y-2"
+                                      dangerouslySetInnerHTML={{
+                                        __html: getMarkdownHtml(
+                                          tailoringResult.tailored_resume_markdown ||
+                                          analyzeJdAndTailor(extractedJd?.raw_text || jdText || "").tailored_resume_markdown ||
+                                          ""
+                                        )
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* PDF View */}
+                              {selectedPreviewFormat === "pdf" && (
+                                <div className="flex flex-col h-full items-center justify-center border border-border rounded-2xl p-8 bg-card text-center space-y-4 shadow-sm">
+                                  <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 flex items-center justify-center shadow-inner">
+                                    <FileText size={32} />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <h4 className="font-extrabold text-base text-foreground">Adobe PDF Document (.pdf)</h4>
+                                    <p className="text-xs text-foreground-secondary max-w-sm leading-relaxed">
+                                      Compiled via XeLaTeX fontspec engine with <strong>Arial font typesetting</strong> for 100% recruiter ATS compliance.
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                                    <button
+                                      type="button"
+                                      onClick={handleDownload}
+                                      className="px-5 py-2.5 bg-accent hover:bg-accent/90 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-md cursor-pointer active:scale-95"
+                                    >
+                                      <Download size={15} />
+                                      Download Tailored PDF
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* DOCX View */}
+                              {selectedPreviewFormat === "docx" && (
+                                <div className="flex flex-col h-full items-center justify-center border border-border rounded-2xl p-8 bg-card text-center space-y-4 shadow-sm">
+                                  <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-500 flex items-center justify-center shadow-inner">
+                                    <FileText size={32} />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <h4 className="font-extrabold text-base text-foreground">Microsoft Word Document (.docx)</h4>
+                                    <p className="text-xs text-foreground-secondary max-w-sm leading-relaxed">
+                                      Formatted with 1-inch margins, bullet point structures, and standard corporate headings.
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center justify-center gap-3 pt-2">
+                                    <button
+                                      type="button"
+                                      onClick={handleDownload}
+                                      className="px-5 py-2.5 bg-accent hover:bg-accent/90 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-md cursor-pointer active:scale-95"
+                                    >
+                                      <Download size={15} />
+                                      Download Tailored DOCX
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
                           </div>
                         )}
 
