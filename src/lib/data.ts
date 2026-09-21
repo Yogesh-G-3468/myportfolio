@@ -192,6 +192,7 @@ export const navLinks = [
   { name: "Blogs", href: "/blogs" },
   { name: "Tailor Resume", href: "/resume-tailor" },
   { name: "Career Scraper", href: "/career-scraper" },
+  { name: "Vibe Trading", href: "/trading" },
   { name: "DSA Patterns", href: "/dsa" },
   { name: "Contact", href: "#contact" },
 ];
