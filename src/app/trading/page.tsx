@@ -382,7 +382,7 @@ export default function TradingPage() {
         {health && !health.llm_configured && (
           <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-sm mb-6">
             <Info size={16} />
-            LLM API key not configured — AI signals will use technical analysis only. Set <code className="mx-1 px-1 bg-amber-100 dark:bg-amber-900/30 rounded text-xs">ANTHROPIC_API_KEY</code> for enhanced signals.
+            LLM API key not configured — AI signals will use technical analysis only. Set <code className="mx-1 px-1 bg-amber-100 dark:bg-amber-900/30 rounded text-xs">GEMINI_API_KEY</code> for enhanced signals.
           </div>
         )}
 
