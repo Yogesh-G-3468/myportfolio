@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Navbar from "@/components/Navbar";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Loader2,
   Lock,
@@ -399,23 +399,22 @@ export default function TradingPage() {
           </div>
         )}
 
-        {/* Tab Content */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
+        {/* Tab Content — all panels stay mounted to preserve state */}
+        {([
+          ["watchlist", <WatchlistPanel key="watchlist" />],
+          ["signals", <SignalsPanel key="signals" />],
+          ["orders", <OrdersPanel key="orders" />],
+          ["positions", <PositionsPanel key="positions" />],
+          ["backtest", <BacktestPanel key="backtest" />],
+          ["portfolio", <PortfolioPanel key="portfolio" />],
+        ] as [Tab, React.ReactNode][]).map(([id, panel]) => (
+          <div
+            key={id}
+            style={{ display: activeTab === id ? "block" : "none" }}
           >
-            {activeTab === "watchlist" && <WatchlistPanel />}
-            {activeTab === "signals" && <SignalsPanel />}
-            {activeTab === "orders" && <OrdersPanel />}
-            {activeTab === "positions" && <PositionsPanel />}
-            {activeTab === "backtest" && <BacktestPanel />}
-            {activeTab === "portfolio" && <PortfolioPanel />}
-          </motion.div>
-        </AnimatePresence>
+            {panel}
+          </div>
+        ))}
       </div>
     </>
   );
