@@ -197,13 +197,13 @@ export interface MarketOpeningScanResponse {
   market_notes: string;
 }
 
-// Pre-built stock universes
+// Pre-built NSE stock universes
 export const STOCK_UNIVERSES: Record<string, string[]> = {
-  "US Tech": ["AAPL", "GOOGL", "MSFT", "TSLA", "NVDA", "META", "AMZN", "AMD", "NFLX", "CRM", "ADBE", "INTC", "ORCL", "IBM", "CSCO"],
-  "US Blue Chip": ["AAPL", "MSFT", "JPM", "JNJ", "WMT", "PG", "V", "UNH", "HD", "DIS", "BAC", "MA", "XOM", "KO", "PEP"],
   "Nifty 50": ["RELIANCE.NS", "HDFCBANK.NS", "INFY.NS", "TCS.NS", "ICICIBANK.NS", "HINDUNILVR.NS", "SBIN.NS", "BHARTIARTL.NS", "ITC.NS", "KOTAKBANK.NS", "LT.NS", "BAJFINANCE.NS", "ASIANPAINT.NS", "MARUTI.NS", "SUNPHARMA.NS"],
-  "Semiconductors": ["NVDA", "AMD", "INTC", "QCOM", "AVGO", "TXN", "MU", "AMAT", "LRCX", "ASML"],
-  "EV & Clean Energy": ["TSLA", "RIVN", "LCID", "NIO", "XPEV", "FSLR", "ENPH", "SEDG", "PLUG", "CSIQ"],
+  "Nifty Bank": ["HDFCBANK.NS", "ICICIBANK.NS", "KOTAKBANK.NS", "SBIN.NS", "AXISBANK.NS", "INDUSINDBK.NS", "BANDHANBNK.NS", "FEDERALBNK.NS", "IDFCFIRSTB.NS", "PNB.NS", "BANKBARODA.NS", "AUBANK.NS"],
+  "Nifty IT": ["INFY.NS", "TCS.NS", "HCLTECH.NS", "WIPRO.NS", "TECHM.NS", "LTIM.NS", "PERSISTENT.NS", "COFORGE.NS", "MPHASIS.NS", "LTTS.NS"],
+  "Nifty Pharma": ["SUNPHARMA.NS", "DRREDDY.NS", "CIPLA.NS", "DIVISLAB.NS", "APOLLOHOSP.NS", "LUPIN.NS", "BIOCON.NS", "AUROPHARMA.NS", "TORNTPHARM.NS", "ALKEM.NS"],
+  "Nifty Auto": ["MARUTI.NS", "TATAMOTORS.NS", "M&M.NS", "BAJAJ-AUTO.NS", "HEROMOTOCO.NS", "EICHERMOT.NS", "ASHOKLEY.NS", "BALKRISIND.NS", "MOTHERSON.NS", "TVSMOTOR.NS"],
 };
 
 // Pre-built strategy templates

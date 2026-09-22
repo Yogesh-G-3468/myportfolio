@@ -589,7 +589,7 @@ function SignalsPanel() {
                     Entry
                   </div>
                   <p className="text-xl font-mono font-bold text-foreground">
-                    ${signal.suggested_entry.toFixed(2)}
+                    ₹{signal.suggested_entry.toFixed(2)}
                   </p>
                 </div>
               )}
@@ -600,7 +600,7 @@ function SignalsPanel() {
                     Stop Loss
                   </div>
                   <p className="text-xl font-mono font-bold text-foreground">
-                    ${signal.suggested_stop_loss.toFixed(2)}
+                    ₹{signal.suggested_stop_loss.toFixed(2)}
                   </p>
                 </div>
               )}
@@ -611,7 +611,7 @@ function SignalsPanel() {
                     Take Profit
                   </div>
                   <p className="text-xl font-mono font-bold text-foreground">
-                    ${signal.suggested_take_profit.toFixed(2)}
+                    ₹{signal.suggested_take_profit.toFixed(2)}
                   </p>
                 </div>
               )}
@@ -839,7 +839,7 @@ function OrdersPanel() {
                       {order.quantity}
                     </td>
                     <td className="px-6 py-3 text-sm text-foreground text-right font-mono">
-                      {order.price ? `$${order.price.toFixed(2)}` : "MARKET"}
+                      {order.price ? `₹${order.price.toFixed(2)}` : "MARKET"}
                     </td>
                     <td className="px-6 py-3 text-sm text-center">
                       <span
@@ -1149,7 +1149,7 @@ function BacktestPanel() {
 
           <div>
             <label className="block text-sm font-medium text-foreground-secondary mb-1.5">
-              Initial Capital ($)
+              Initial Capital (₹)
             </label>
             <input
               type="number"
@@ -1459,7 +1459,7 @@ function PortfolioPanel() {
 // ── Watchlist Panel (Stock Screener) ─────────────────────────────────
 
 function WatchlistPanel() {
-  const [universeKey, setUniverseKey] = useState("US Tech");
+  const [universeKey, setUniverseKey] = useState("Nifty 50");
   const [maxResults, setMaxResults] = useState(10);
   const [loading, setLoading] = useState(false);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
@@ -1473,7 +1473,7 @@ function WatchlistPanel() {
     setError(null);
     setOpeningScan(null);
     try {
-      const universe = STOCK_UNIVERSES[universeKey] || STOCK_UNIVERSES["US Tech"];
+      const universe = STOCK_UNIVERSES[universeKey] || STOCK_UNIVERSES["Nifty 50"];
 
       if (scanMode === "opening") {
         const result = await scanMarketOpening({
@@ -1722,7 +1722,7 @@ function WatchlistPanel() {
                     </span>
                   </div>
                   <div className="flex items-center gap-3 text-sm text-foreground-secondary mt-0.5">
-                    <span className="font-mono">${stock.price.toFixed(2)}</span>
+                    <span className="font-mono">₹{stock.price.toFixed(2)}</span>
                     <span
                       className={
                         stock.change_pct >= 0
@@ -1818,7 +1818,7 @@ function WatchlistPanel() {
                           <div className="bg-red-50 dark:bg-red-950/20 rounded-lg p-2 text-center border border-red-100 dark:border-red-900/30">
                             <p className="text-xs text-red-600 dark:text-red-400">R2</p>
                             <p className="text-sm font-mono font-bold text-red-700 dark:text-red-400">
-                              ${stock.key_levels.resistance_2.toFixed(2)}
+                              ₹{stock.key_levels.resistance_2.toFixed(2)}
                             </p>
                           </div>
                         )}
@@ -1826,7 +1826,7 @@ function WatchlistPanel() {
                           <div className="bg-red-50/50 dark:bg-red-950/10 rounded-lg p-2 text-center border border-red-100/50 dark:border-red-900/20">
                             <p className="text-xs text-red-600/70 dark:text-red-400/70">R1</p>
                             <p className="text-sm font-mono font-bold text-red-700/80 dark:text-red-400/80">
-                              ${stock.key_levels.resistance_1.toFixed(2)}
+                              ₹{stock.key_levels.resistance_1.toFixed(2)}
                             </p>
                           </div>
                         )}
@@ -1834,7 +1834,7 @@ function WatchlistPanel() {
                           <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-2 text-center border border-blue-100 dark:border-blue-900/30">
                             <p className="text-xs text-blue-600 dark:text-blue-400">Pivot</p>
                             <p className="text-sm font-mono font-bold text-blue-700 dark:text-blue-400">
-                              ${stock.key_levels.pivot.toFixed(2)}
+                              ₹{stock.key_levels.pivot.toFixed(2)}
                             </p>
                           </div>
                         )}
@@ -1842,7 +1842,7 @@ function WatchlistPanel() {
                           <div className="bg-green-50/50 dark:bg-green-950/10 rounded-lg p-2 text-center border border-green-100/50 dark:border-green-900/20">
                             <p className="text-xs text-green-600/70 dark:text-green-400/70">S1</p>
                             <p className="text-sm font-mono font-bold text-green-700/80 dark:text-green-400/80">
-                              ${stock.key_levels.support_1.toFixed(2)}
+                              ₹{stock.key_levels.support_1.toFixed(2)}
                             </p>
                           </div>
                         )}
@@ -1850,7 +1850,7 @@ function WatchlistPanel() {
                           <div className="bg-green-50 dark:bg-green-950/20 rounded-lg p-2 text-center border border-green-100 dark:border-green-900/30">
                             <p className="text-xs text-green-600 dark:text-green-400">S2</p>
                             <p className="text-sm font-mono font-bold text-green-700 dark:text-green-400">
-                              ${stock.key_levels.support_2.toFixed(2)}
+                              ₹{stock.key_levels.support_2.toFixed(2)}
                             </p>
                           </div>
                         )}
