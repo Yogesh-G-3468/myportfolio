@@ -1,53 +1,68 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, User, Clock } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { marked } from 'marked';
-
-interface Blog {
-    id: number;
-    title: string;
-    slug: string;
-    excerpt: string | null;
-    content: string;
-    cover_image: string | null;
-    published: boolean;
-    created_at: string;
-    updated_at: string;
-}
+import { getBlogBySlug } from '@/lib/db';
 
 interface PageProps {
     params: Promise<{ slug: string }>;
 }
 
-async function getBlog(slug: string): Promise<Blog | null> {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+    const { slug } = await params;
+    const blog = await getBlogBySlug(slug);
 
-    try {
-        const res = await fetch(`${baseUrl}/api/blogs/${slug}`, {
-            cache: 'no-store',
-        });
-
-        if (!res.ok) {
-            return null;
-        }
-
-        const blog = await res.json();
-
-        // Don't show unpublished blogs to public
-        if (!blog.published) {
-            return null;
-        }
-
-        return blog;
-    } catch (error) {
-        console.error('Error fetching blog:', error);
-        return null;
+    if (!blog) {
+        return {
+            title: 'Blog Not Found',
+            description: 'The requested blog post could not be found.',
+        };
     }
+
+    const title = blog.title;
+    const description = blog.excerpt || blog.title;
+    const url = `/blogs/${blog.slug}`;
+    const ogImage = blog.cover_image || `/blogs/${blog.slug}/opengraph-image`;
+
+    return {
+        title,
+        description,
+        alternates: {
+            canonical: url,
+        },
+        openGraph: {
+            title,
+            description,
+            url,
+            siteName: 'Yogeshwaran G',
+            type: 'article',
+            publishedTime: blog.created_at ? new Date(blog.created_at).toISOString() : undefined,
+            modifiedTime: blog.updated_at ? new Date(blog.updated_at).toISOString() : undefined,
+            authors: ['Yogeshwaran G'],
+            images: [
+                {
+                    url: ogImage,
+                    width: 1200,
+                    height: 630,
+                    alt: blog.title,
+                },
+            ],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+            creator: '@Yogeshwaran__g',
+            site: '@Yogeshwaran__g',
+            images: [ogImage],
+        },
+    };
 }
 
 export default async function BlogPostPage({ params }: PageProps) {
     const { slug } = await params;
-    const blog = await getBlog(slug);
+    const blog = await getBlogBySlug(slug);
 
     if (!blog) {
         notFound();

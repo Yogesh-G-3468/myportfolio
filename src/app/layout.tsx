@@ -17,8 +17,14 @@ const instrumentSerif = Instrument_Serif({
   display: "swap",
 });
 
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://yogeshwaran.space';
+
 export const metadata: Metadata = {
-  title: "Yogeshwaran G — Software Engineer",
+  metadataBase: new URL(baseUrl),
+  title: {
+    default: "Yogeshwaran G — Software Engineer",
+    template: "%s | Yogeshwaran G",
+  },
   description:
     "Software engineer building things with code. Currently at JMAN Group, working on full-stack apps, data pipelines, and AI.",
   keywords: [
@@ -28,18 +34,23 @@ export const metadata: Metadata = {
     "Chennai",
   ],
   authors: [{ name: "Yogeshwaran G" }],
+  creator: "Yogeshwaran G",
   openGraph: {
     title: "Yogeshwaran G — Software Engineer",
     description:
       "Software engineer building things with code.",
+    url: baseUrl,
+    siteName: "Yogeshwaran G",
     type: "website",
     locale: "en_US",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Yogeshwaran G — Software Engineer",
     description:
       "Software engineer building things with code.",
+    creator: "@Yogeshwaran__g",
+    site: "@Yogeshwaran__g",
   },
   robots: {
     index: true,
