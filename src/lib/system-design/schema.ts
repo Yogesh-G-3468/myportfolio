@@ -58,6 +58,13 @@ export interface TopicItem extends FrontMatter {
   usedInCaseStudies: { title: string; href: string }[];
 }
 
+export interface CurriculumItemMeta {
+  id: string;
+  title: string;
+  priority: string;
+  status: string;
+}
+
 export interface ModuleItem {
   id: string;
   title: string;
@@ -65,4 +72,5 @@ export interface ModuleItem {
   priority: TopicPriority;
   summary: string;
   topics: TopicItem[];
+  curriculumItems?: CurriculumItemMeta[];
 }

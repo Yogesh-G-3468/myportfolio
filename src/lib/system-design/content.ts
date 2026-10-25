@@ -41,7 +41,7 @@ export function getAllModules(): ModuleItem[] {
   const curriculumPath = path.join(CONTENT_DIR, "_curriculum.yaml");
   if (fs.existsSync(curriculumPath)) {
     try {
-      const parsed = yaml.load(fs.readFileSync(curriculumPath, "utf8")) as any;
+      const parsed = ((yaml as any).load ? (yaml as any).load(fs.readFileSync(curriculumPath, "utf8")) : (yaml as any).default?.load(fs.readFileSync(curriculumPath, "utf8"))) as any;
       if (parsed && Array.isArray(parsed.modules)) {
         curriculumModules = parsed.modules;
       }
@@ -50,38 +50,46 @@ export function getAllModules(): ModuleItem[] {
     }
   }
 
-  // Scan module directories
+  const allTopics = getAllTopics();
+
+  // If curriculum.yaml exists, return all 24 curriculum modules in canonical order
+  if (curriculumModules.length > 0) {
+    return curriculumModules.map((currMeta: any, idx: number) => {
+      const moduleSlug = currMeta.slug || currMeta.id;
+      const moduleTopics = allTopics.filter((t) => t.moduleSlug === moduleSlug);
+      moduleTopics.sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+
+      return {
+        id: moduleSlug,
+        slug: moduleSlug,
+        title: currMeta.title || `Module ${idx + 1}: ${moduleSlug.replace(/-/g, " ")}`,
+        priority: currMeta.priority || "P0",
+        summary: currMeta.summary || "",
+        topics: moduleTopics,
+        curriculumItems: currMeta.items || [],
+      };
+    });
+  }
+
+  // Fallback to directory scanning only if _curriculum.yaml is missing
   const entries = fs.readdirSync(CONTENT_DIR, { withFileTypes: true });
   const moduleDirs = entries.filter((e) => e.isDirectory() && !e.name.startsWith("_"));
 
-  const allTopics = getAllTopics();
-
-  const modules: ModuleItem[] = moduleDirs.map((dir) => {
+  return moduleDirs.map((dir) => {
     const moduleSlug = dir.name;
-    const currMeta = curriculumModules.find((m) => m.slug === moduleSlug || m.id === moduleSlug);
     const moduleTopics = allTopics.filter((t) => t.moduleSlug === moduleSlug);
     moduleTopics.sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
 
     return {
       id: moduleSlug,
       slug: moduleSlug,
-      title: currMeta?.title || moduleTopics[0]?.moduleTitle || moduleSlug.replace(/-/g, " "),
-      priority: currMeta?.priority || "P0",
-      summary: currMeta?.summary || moduleTopics[0]?.summary || "",
+      title: moduleTopics[0]?.moduleTitle || moduleSlug.replace(/-/g, " "),
+      priority: "P0",
+      summary: moduleTopics[0]?.summary || "",
       topics: moduleTopics,
+      curriculumItems: [],
     };
   });
-
-  // Sort modules according to curriculum order if available
-  if (curriculumModules.length > 0) {
-    modules.sort((a, b) => {
-      const idxA = curriculumModules.findIndex((m) => m.slug === a.slug || m.id === a.id);
-      const idxB = curriculumModules.findIndex((m) => m.slug === b.slug || m.id === b.id);
-      return (idxA !== -1 ? idxA : 999) - (idxB !== -1 ? idxB : 999);
-    });
-  }
-
-  return modules;
 }
 
 export function getAllTopics(): TopicItem[] {

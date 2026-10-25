@@ -41,7 +41,7 @@ export default function ContinueCard() {
           </p>
         </div>
         <Link
-          href="/system-design/foundations"
+          href="/system-design/foundations/zero-to-millions"
           className="shrink-0 flex items-center gap-2 px-6 py-3 rounded-2xl bg-accent text-white font-semibold text-sm hover:opacity-90 shadow-md transition-all"
         >
           <Play className="w-4 h-4 fill-white" />

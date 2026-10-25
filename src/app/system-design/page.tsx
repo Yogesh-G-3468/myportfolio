@@ -119,10 +119,10 @@ export default function SystemDesignLandingPage() {
             </div>
             <div>
               <span className="block text-2xl sm:text-3xl font-extrabold text-accent font-mono">
-                {totalTopics}
+                {modules.reduce((acc, m) => acc + (m.curriculumItems?.length || m.topics.length), 0)}
               </span>
               <span className="text-xs text-foreground-secondary uppercase tracking-wider font-medium">
-                Deep Topics
+                Curriculum Topics
               </span>
             </div>
             <div>
@@ -327,7 +327,8 @@ export default function SystemDesignLandingPage() {
 
               <div className="mt-6 pt-4 border-t border-border/50 flex items-center justify-between text-xs text-foreground-secondary">
                 <span className="font-medium">
-                  {m.topics.length} {m.topics.length === 1 ? "topic" : "topics"}
+                  {m.curriculumItems?.length || m.topics.length} {(m.curriculumItems?.length || m.topics.length) === 1 ? "topic" : "topics"}
+                  {m.topics.length > 0 && ` • ${m.topics.length} ready`}
                 </span>
                 <span className="font-semibold text-accent flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                   Explore Module <ArrowRight size={13} />

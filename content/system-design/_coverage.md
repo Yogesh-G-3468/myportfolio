@@ -4,7 +4,7 @@
 
 | Module | Total Items | Covered | Coverage % |
 | :--- | :--- | :--- | :--- |
-| **Module 1: Foundations and Interview Approach** | 10 | 0 | 0% |
+| **Module 1: Foundations and Interview Approach** | 10 | 3 | 30% |
 | **Module 2: Engineering Prerequisites for System Design** | 6 | 0 | 0% |
 | **Module 3: Core Principles and Trade-offs** | 7 | 0 | 0% |
 | **Module 4: Networking Fundamentals** | 10 | 0 | 0% |
@@ -28,7 +28,7 @@
 | **Module 22: Low-Level Design (LLD)** | 8 | 1 | 13% |
 | **Module 23: High-Level Design Case Studies** | 39 | 1 | 3% |
 | **Module 24: Interview Playbook, Practice and Resources** | 8 | 0 | 0% |
-| **TOTAL** | **205** | **7** | **3%** |
+| **TOTAL** | **205** | **10** | **5%** |
 
 ---
 
@@ -41,10 +41,10 @@
 | HLD vs LLD and Level Expectations | `P0` | 🔴 *Pending Release* |
 | Requirements Engineering: Functional, Non-Functional, and The Ilities Checklist | `P0` | 🔴 *Pending Release* |
 | Clarifying Questions and Assumptions Bank | `P0` | 🔴 *Pending Release* |
-| Repeatable System Design Interview Framework | `P0` | 🔴 *Pending Release* |
-| Back-of-the-Envelope Estimation: Math, Latency Numbers, and Formulas | `P0` | 🔴 *Pending Release* |
+| Repeatable System Design Interview Framework | `P0` | [Repeatable System Design Interview Framework](file:///foundations/interview-framework) |
+| Back-of-the-Envelope Estimation: Math, Latency Numbers, and Formulas | `P0` | [Back-of-the-Envelope Estimation: Math, Latency Numbers, and Formulas](file:///foundations/back-of-envelope-estimation) |
 | SLIs, SLOs, SLAs, Error Budgets, and the Nines Table | `P0` | 🔴 *Pending Release* |
-| Scaling from Zero to Millions of Users Step-by-Step | `P0` | 🔴 *Pending Release* |
+| Scaling from Zero to Millions of Users Step-by-Step | `P0` | [Scaling from Zero to Millions of Users Step-by-Step](file:///foundations/zero-to-millions) |
 | System Design in Real Engineering: RFCs, ADRs, Conway's Law, and Tech Debt | `P0` | 🔴 *Pending Release* |
 | Problem to Building Block Mental Map | `P0` | 🔴 *Pending Release* |
 | Trade-off Vocabulary and Justification Framework | `P0` | 🔴 *Pending Release* |

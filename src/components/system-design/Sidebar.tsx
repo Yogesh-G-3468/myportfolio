@@ -70,7 +70,7 @@ export default function Sidebar({ modules }: SidebarProps) {
 
   // Overall stats
   const totalTopics = useMemo(() => {
-    return modules.reduce((acc, m) => acc + m.topics.length, 0);
+    return modules.reduce((acc, m) => acc + (m.curriculumItems?.length || m.topics.length), 0);
   }, [modules]);
 
   const completedCount = completedTopics.length;
@@ -174,43 +174,68 @@ export default function Sidebar({ modules }: SidebarProps) {
 
       {/* Modules Tree */}
       <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 -mr-1">
-        {modules.map((m) => {
+        {modules.map((m, idx) => {
           const isOpen = !!openModules[m.slug];
           const isModActive = pathname.startsWith(`/system-design/${m.slug}`);
+          const totalItems = m.curriculumItems?.length || m.topics.length;
           const modCompleted = m.topics.filter((t) =>
             completedTopics.includes(`${m.slug}/${t.slug}`)
           ).length;
 
+          // Clean title: "Module 01: ..."
+          const cleanTitle = m.title.replace(/^Module \d+:\s*/, "");
+          const formattedModNum = `Module ${String(idx + 1).padStart(2, "0")}`;
+
           return (
             <div
               key={m.slug}
-              className="rounded-2xl border border-border/60 overflow-hidden bg-background-elevated/30"
+              className={`rounded-2xl border transition-colors overflow-hidden ${
+                isModActive
+                  ? "border-accent/40 bg-accent/5"
+                  : "border-border/60 bg-background-elevated/30 hover:border-border"
+              }`}
             >
-              <button
-                type="button"
-                onClick={() => toggleModule(m.slug)}
-                className={`w-full flex items-center justify-between p-3 text-left transition-colors ${
-                  isModActive
-                    ? "bg-accent/5 text-foreground font-semibold"
-                    : "hover:bg-muted/50 text-foreground-secondary hover:text-foreground"
+              <div
+                className={`w-full flex items-center justify-between p-2.5 text-left transition-colors ${
+                  isModActive ? "text-foreground font-semibold" : "text-foreground-secondary hover:text-foreground"
                 }`}
               >
-                <div className="flex items-center gap-2 min-w-0 pr-2">
-                  <span className="shrink-0 text-muted-foreground">
-                    {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  </span>
-                  <span className="text-xs font-semibold truncate leading-tight">
-                    {m.title}
-                  </span>
+                <div className="flex items-center gap-2 min-w-0 pr-2 flex-1">
+                  {m.topics.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleModule(m.slug);
+                      }}
+                      className="p-1 -ml-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 transition-colors"
+                      title={isOpen ? "Collapse topics" : "Expand topics"}
+                    >
+                      {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </button>
+                  ) : (
+                    <span className="w-4 shrink-0" />
+                  )}
+                  <Link
+                    href={`/system-design/${m.slug}`}
+                    onClick={() => setIsMobileOpen(false)}
+                    className="text-xs font-semibold truncate leading-tight hover:text-accent transition-colors flex-1"
+                    title={`${formattedModNum}: ${cleanTitle}`}
+                  >
+                    <span className="text-muted-foreground font-mono text-[11px] mr-1">
+                      {String(idx + 1).padStart(2, "0")}.
+                    </span>
+                    {cleanTitle}
+                  </Link>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-muted text-foreground-secondary">
-                    {modCompleted}/{m.topics.length}
+                    {modCompleted}/{totalItems}
                   </span>
                 </div>
-              </button>
+              </div>
 
-              {isOpen && (
+              {isOpen && m.topics.length > 0 && (
                 <div className="py-1 px-2 border-t border-border/40 bg-background/50 space-y-0.5">
                   {m.topics.map((t) => {
                     const isTopicActive = pathname === `/system-design/${m.slug}/${t.slug}`;

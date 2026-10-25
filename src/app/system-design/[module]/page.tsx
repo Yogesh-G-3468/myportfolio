@@ -61,7 +61,7 @@ export default async function ModuleOverviewPage({ params }: ModulePageProps) {
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-extrabold text-foreground tracking-tight leading-tight">
-            {currentModule.title}
+            {currentModule.title.replace(/^Module \d+:\s*/, "")}
           </h1>
 
           <p className="text-base sm:text-lg text-foreground-secondary leading-relaxed">
@@ -70,7 +70,16 @@ export default async function ModuleOverviewPage({ params }: ModulePageProps) {
 
           <div className="flex items-center gap-6 pt-4 text-xs font-medium text-foreground-secondary border-t border-border/60">
             <span>
-              <strong className="text-foreground text-sm">{currentModule.topics.length}</strong> Topics
+              <strong className="text-foreground text-sm">
+                {currentModule.topics.length}
+              </strong>{" "}
+              {currentModule.topics.length === 1 ? "Guide" : "Guides"} Available
+            </span>
+            <span>
+              <strong className="text-foreground text-sm">
+                {currentModule.curriculumItems?.length || currentModule.topics.length}
+              </strong>{" "}
+              Curriculum Topics
             </span>
             <span>
               Self-Paced Architecture Curriculum
@@ -79,17 +88,18 @@ export default async function ModuleOverviewPage({ params }: ModulePageProps) {
         </div>
       </div>
 
-      {/* Topics List */}
-      <section className="space-y-4">
-        <h2 className="text-xl font-bold text-foreground">
-          Module Curriculum & Topics
-        </h2>
-
-        {currentModule.topics.length === 0 ? (
-          <div className="p-8 rounded-3xl border border-dashed border-border bg-background-elevated/30 text-center text-foreground-secondary text-sm">
-            Topics in this module are actively being compiled and validated.
+      {/* Available Authored Guides */}
+      {currentModule.topics.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-foreground">
+              Deep-Dive Guides & Worked Solutions
+            </h2>
+            <span className="text-xs text-foreground-secondary font-mono">
+              {currentModule.topics.length} available
+            </span>
           </div>
-        ) : (
+
           <div className="space-y-3">
             {currentModule.topics.map((t, idx) => (
               <Link
@@ -130,8 +140,72 @@ export default async function ModuleOverviewPage({ params }: ModulePageProps) {
               </Link>
             ))}
           </div>
-        )}
-      </section>
+        </section>
+      )}
+
+      {/* Full Module Syllabus & Curriculum Items */}
+      {currentModule.curriculumItems && currentModule.curriculumItems.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-foreground">
+                Module Syllabus & Curriculum Roadmap
+              </h2>
+              <p className="text-xs text-foreground-secondary mt-1">
+                Every concept and interview requirement defined in the complete gap-free curriculum contract.
+              </p>
+            </div>
+            <span className="text-xs font-mono text-muted-foreground">
+              {currentModule.curriculumItems.length} topics
+            </span>
+          </div>
+
+          <div className="rounded-2xl border border-border/80 bg-background-elevated/40 divide-y divide-border/50 overflow-hidden">
+            {currentModule.curriculumItems.map((item, idx) => {
+              const matchedTopic = currentModule.topics.find(
+                (t) => t.slug === item.id || t.covers?.includes(item.title)
+              );
+
+              return (
+                <div
+                  key={item.id}
+                  className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/30 transition-colors"
+                >
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <span className="font-mono text-xs text-muted-foreground mt-0.5 shrink-0">
+                      {String(idx + 1).padStart(2, "0")}.
+                    </span>
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-semibold text-foreground">
+                        {item.title}
+                      </h4>
+                      <span className="text-[10px] font-mono uppercase text-muted-foreground">
+                        Priority: {item.priority}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 sm:self-center">
+                    {matchedTopic ? (
+                      <Link
+                        href={`/system-design/${currentModule.slug}/${matchedTopic.slug}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent text-white text-xs font-semibold hover:opacity-90 shadow-sm transition-all"
+                      >
+                        <span>Read Guide</span>
+                        <ArrowRight size={12} />
+                      </Link>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-mono text-muted-foreground bg-muted/60 border border-border/40">
+                        Syllabus Roadmap
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Prev / Next Module Navigation */}
       <div className="flex justify-between items-center gap-4 pt-6 border-t border-border/60">
