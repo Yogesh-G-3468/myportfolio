@@ -1025,7 +1025,7 @@ Grade: \\textbf{CGPA 8.57 / 10} (First Class with Distinction)
   const getMarkdownHtml = (markdownStr?: string) => {
     if (!markdownStr) return "";
     try {
-      return marked.parse(markdownStr);
+      return marked.parse(markdownStr) as string;
     } catch (e) {
       // Basic text parser fallback
       return markdownStr

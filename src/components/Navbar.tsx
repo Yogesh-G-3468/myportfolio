@@ -13,6 +13,7 @@ export default function Navbar() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     const isWidePage = pathname && (
+        pathname.startsWith("/system-design") ||
         pathname.startsWith("/dsa") ||
         pathname.startsWith("/career-scraper") ||
         pathname.startsWith("/resume-tailor") ||
